@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Private Gallery</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+
+</head>
+
+<body>
+
+    <!-- NAVBAR -->
+
+    <header class="navbar">
+
+        <div class="logo">
+            🔐 Private Vault
+        </div>
+
+        <a href="/logout" class="logout">
+            Logout
+        </a>
+
+    </header>
+
+
+    <!-- MAIN -->
+
+    <main class="gallery-container">
+
+        <div class="gallery-header">
+
+            <div>
+                <h1>My Private Gallery</h1>
+
+                <p>
+                    Your shared private photo collection.
+                </p>
+            </div>
+
+
+            <!-- ADD PHOTO -->
+
+          <form action="/upload" method="POST" enctype="multipart/form-data" class="upload-form">
+
+    <input
+        type="file"
+        id="photo"
+        name="photo"
+        accept="image/*"
+        required
+    >
+
+    <button type="submit" class="upload-button">
+        Upload Photo
+    </button>
+
+</form>
+
+        </div>
+
+
+        <!-- GALLERY -->
+
+        <div class="gallery">
+
+            {% for photo in photos %}
+
+            <div class="photo-card">
+
+   <img
+    src="{{ url_for('private_image', filename=photo) }}"
+    alt="Private Picture"
+    class="gallery-image"
+    onclick="openImage(this)"
+>
+    <div class="photo-info">
+
+        <span>{{ photo }}</span>
+
+        <form
+            action="{{ url_for('delete_photo', filename=photo) }}"
+            method="POST"
+            onsubmit="return confirm('Are you sure you want to delete this photo?');"
+        >
+
+            <button type="submit" class="delete-button">
+                Delete
+            </button>
+
+        </form>
+
+    </div>
+
+</div>
+
+            {% endfor %}
+
+        </div>
+
+    </main>
+
+<!-- FULL SCREEN IMAGE -->
+
+<div id="imageModal" class="image-modal" onclick="closeImage()">
+
+    <span class="close-image">&times;</span>
+
+    <img id="bigImage" class="big-image">
+
+</div>
+    <script src="{{ url_for('static', filename='script.js') }}">
+    </script>
+
+</body>
+
+</html>

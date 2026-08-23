@@ -1,0 +1,244 @@
+/* =========================
+   RESET
+========================= */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    font-family: Arial, Helvetica, sans-serif;
+
+    background:
+        radial-gradient(circle at 20% 20%, #243b80 0%, transparent 35%),
+        radial-gradient(circle at 80% 80%, #171c52 0%, transparent 35%),
+        #070b1f;
+
+    color: white;
+}
+
+
+/* =========================
+   LOGIN CONTAINER
+========================= */
+
+.container {
+    width: 390px;
+    padding: 45px 40px;
+
+    background: rgba(255, 255, 255, 0.07);
+
+    border: 1px solid rgba(255, 255, 255, 0.15);
+
+    border-radius: 24px;
+
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+
+    box-shadow:
+        0 25px 60px rgba(0, 0, 0, 0.45),
+        0 0 35px rgba(72, 100, 255, 0.12);
+}
+
+
+/* =========================
+   HEADING
+========================= */
+
+.container h1 {
+    text-align: center;
+
+    font-size: 28px;
+    letter-spacing: 3px;
+
+    margin-bottom: 35px;
+
+    color: #ffffff;
+}
+
+
+/* =========================
+   LABELS
+========================= */
+
+label {
+    display: block;
+
+    margin-bottom: 9px;
+
+    font-size: 14px;
+}
+
+.username,
+.password {
+    font-weight: 500;
+    color: #d8dcff;
+}
+
+
+/* =========================
+   INPUTS
+========================= */
+
+input[type="text"],
+input[type="password"] {
+    width: 100%;
+
+    height: 48px;
+
+    padding: 0 15px;
+
+    margin-bottom: 20px;
+
+    border: 1px solid rgba(255, 255, 255, 0.15);
+
+    border-radius: 10px;
+
+    outline: none;
+
+    background: rgba(255, 255, 255, 0.08);
+
+    color: white;
+
+    font-size: 15px;
+
+    transition: 0.3s ease;
+}
+
+input[type="text"]::placeholder,
+input[type="password"]::placeholder {
+    color: #8d93b8;
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus {
+    border-color: #7185ff;
+
+    background: rgba(255, 255, 255, 0.11);
+
+    box-shadow: 0 0 15px rgba(91, 111, 255, 0.25);
+}
+
+
+/* =========================
+   REMEMBER ME
+========================= */
+
+.check {
+    width: 15px;
+    height: 15px;
+
+    accent-color: #6678ff;
+
+    vertical-align: middle;
+
+    cursor: pointer;
+}
+
+.remember {
+    display: inline;
+
+    margin-left: 6px;
+
+    font-size: 13px;
+
+    color: #aeb4d5;
+
+    cursor: pointer;
+}
+
+
+/* =========================
+   FORGET PASSWORD
+========================= */
+
+.forget-password {
+    float: right;
+
+    margin-top: 2px;
+
+    font-size: 13px;
+
+    color: #7f91ff;
+
+    cursor: pointer;
+
+    transition: 0.3s ease;
+}
+
+.forget-password:hover {
+    color: #aab6ff;
+}
+
+
+/* =========================
+   LOGIN BUTTON
+========================= */
+
+.login {
+    width: 100%;
+
+    height: 50px;
+
+    margin-top: 25px;
+
+    border: none;
+
+    border-radius: 11px;
+
+    background: linear-gradient(
+        135deg,
+        #5869ff,
+        #7b5cff
+    );
+
+    color: white;
+
+    font-size: 16px;
+
+    font-weight: bold;
+
+    letter-spacing: 1px;
+
+    cursor: pointer;
+
+    transition: 0.3s ease;
+
+    box-shadow:
+        0 8px 25px rgba(88, 105, 255, 0.35);
+}
+
+.login:hover {
+    transform: translateY(-2px);
+
+    box-shadow:
+        0 12px 30px rgba(88, 105, 255, 0.5);
+}
+
+.login:active {
+    transform: translateY(0);
+}
+
+
+/* =========================
+   MOBILE
+========================= */
+
+@media (max-width: 500px) {
+
+    .container {
+        width: 90%;
+        padding: 35px 25px;
+    }
+
+    .container h1 {
+        font-size: 24px;
+    }
+}
