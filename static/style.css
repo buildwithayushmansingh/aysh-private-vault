@@ -16,18 +16,18 @@
 body {
     min-height: 100vh;
 
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: 'Courier New', Courier, monospace;
 
     background:
         radial-gradient(circle at 15% 20%,
-            #263b82 0%,
+            rgba(57, 255, 20, 0.08) 0%,
             transparent 35%),
         radial-gradient(circle at 85% 80%,
-            #241c5c 0%,
+            rgba(57, 255, 20, 0.06) 0%,
             transparent 35%),
-        #070b1f;
+        #000000;
 
-    color: white;
+    color: #39ff88;
 }
 
 
@@ -45,9 +45,9 @@ body {
     align-items: center;
     justify-content: space-between;
 
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(0, 0, 0, 0.6);
 
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(57, 255, 136, 0.3);
 
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
@@ -68,6 +68,10 @@ body {
     font-weight: bold;
 
     letter-spacing: 1px;
+
+    color: #39ff88;
+
+    text-shadow: 0 0 12px rgba(57, 255, 136, 0.6);
 }
 
 
@@ -80,11 +84,11 @@ body {
 
     border-radius: 10px;
 
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(57, 255, 136, 0.4);
 
-    background: rgba(255, 255, 255, 0.07);
+    background: rgba(57, 255, 136, 0.05);
 
-    color: white;
+    color: #39ff88;
 
     text-decoration: none;
 
@@ -94,7 +98,9 @@ body {
 }
 
 .logout:hover {
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(57, 255, 136, 0.15);
+
+    box-shadow: 0 0 15px rgba(57, 255, 136, 0.3);
 
     transform: translateY(-2px);
 }
@@ -136,11 +142,15 @@ body {
     letter-spacing: 1px;
 
     margin-bottom: 10px;
+
+    color: #39ff88;
+
+    text-shadow: 0 0 18px rgba(57, 255, 136, 0.5);
 }
 
 
 .gallery-header p {
-    color: #9da5ca;
+    color: #6fbf8f;
 
     font-size: 15px;
 }
@@ -161,9 +171,9 @@ body {
 
     border-radius: 14px;
 
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(57, 255, 136, 0.04);
 
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(57, 255, 136, 0.3);
 
     backdrop-filter: blur(10px);
 }
@@ -174,9 +184,11 @@ body {
 .upload-form input[type="file"] {
     max-width: 230px;
 
-    color: #bfc5e5;
+    color: #6fbf8f;
 
     font-size: 13px;
+
+    font-family: 'Courier New', Courier, monospace;
 }
 
 
@@ -187,21 +199,23 @@ body {
 
     margin-right: 10px;
 
-    border: none;
+    border: 1px solid rgba(57, 255, 136, 0.3);
 
     border-radius: 8px;
 
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(57, 255, 136, 0.08);
 
-    color: white;
+    color: #39ff88;
 
     cursor: pointer;
+
+    font-family: 'Courier New', Courier, monospace;
 
     transition: 0.3s ease;
 }
 
 .upload-form input[type="file"]::file-selector-button:hover {
-    background: rgba(255, 255, 255, 0.18);
+    background: rgba(57, 255, 136, 0.18);
 }
 
 
@@ -210,33 +224,35 @@ body {
 .upload-button {
     padding: 11px 20px;
 
-    border: none;
+    border: 1px solid rgba(57, 255, 136, 0.5);
 
     border-radius: 9px;
 
-    background: linear-gradient(135deg,
-            #5869ff,
-            #7b5cff);
+    background: rgba(57, 255, 136, 0.1);
 
-    color: white;
+    color: #39ff88;
 
     font-size: 14px;
 
     font-weight: bold;
+
+    font-family: 'Courier New', Courier, monospace;
 
     cursor: pointer;
 
     transition: 0.3s ease;
 
     box-shadow:
-        0 8px 20px rgba(88, 105, 255, 0.25);
+        0 0 15px rgba(57, 255, 136, 0.2);
 }
 
 .upload-button:hover {
+    background: rgba(57, 255, 136, 0.2);
+
     transform: translateY(-2px);
 
     box-shadow:
-        0 12px 28px rgba(88, 105, 255, 0.4);
+        0 0 25px rgba(57, 255, 136, 0.45);
 }
 
 
@@ -263,9 +279,9 @@ body {
 
     border-radius: 18px;
 
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(57, 255, 136, 0.03);
 
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(57, 255, 136, 0.25);
 
     backdrop-filter: blur(10px);
 
@@ -277,10 +293,11 @@ body {
 .photo-card:hover {
     transform: translateY(-7px);
 
-    border-color: rgba(115, 130, 255, 0.5);
+    border-color: rgba(57, 255, 136, 0.6);
 
     box-shadow:
-        0 18px 40px rgba(0, 0, 0, 0.4);
+        0 0 30px rgba(57, 255, 136, 0.25),
+        0 18px 40px rgba(0, 0, 0, 0.5);
 }
 
 
@@ -327,7 +344,7 @@ body {
 
     gap: 10px;
 
-    color: #dfe3ff;
+    color: #9fe8bd;
 
     font-size: 14px;
 
@@ -378,7 +395,7 @@ body {
 
     background: transparent;
 
-    color: white;
+    color: #39ff88;
 
     font-size: 25px;
 
@@ -396,7 +413,7 @@ body {
 }
 
 .menu-button:hover {
-    background: rgba(255, 255, 255, 0.12);
+    background: rgba(57, 255, 136, 0.12);
 }
 
 
@@ -415,14 +432,15 @@ body {
 
     padding: 5px;
 
-    background: #151a35;
+    background: #000000;
 
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(57, 255, 136, 0.35);
 
     border-radius: 10px;
 
     box-shadow:
-        0 12px 35px rgba(0, 0, 0, 0.5);
+        0 0 25px rgba(57, 255, 136, 0.15),
+        0 12px 35px rgba(0, 0, 0, 0.6);
 
     display: none;
 
@@ -452,9 +470,11 @@ body {
 
     background: transparent;
 
-    color: white;
+    color: #39ff88;
 
     font-size: 14px;
+
+    font-family: 'Courier New', Courier, monospace;
 
     text-align: left;
 
@@ -464,14 +484,14 @@ body {
 }
 
 .menu-dropdown button:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(57, 255, 136, 0.1);
 }
 
 
 /* DELETE BUTTON */
 
 .menu-dropdown form button {
-    color: #ff9090;
+    color: #ff6b6b;
 }
 
 
@@ -479,6 +499,58 @@ body {
 
 .menu-dropdown form button:hover {
     background: rgba(255, 70, 70, 0.12);
+}
+
+
+/* =========================
+   RENAME FORM
+========================= */
+
+.rename-form {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 4px;
+}
+
+.rename-form input[type="text"] {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid rgba(57, 255, 136, 0.35);
+    border-radius: 7px;
+    background: rgba(57, 255, 136, 0.06);
+    color: #39ff88;
+    font-size: 13px;
+    font-family: 'Courier New', Courier, monospace;
+    outline: none;
+}
+
+.rename-form input[type="text"]::placeholder {
+    color: #4d8f68;
+}
+
+.rename-form input[type="text"]:focus {
+    border-color: rgba(57, 255, 136, 0.8);
+    background: rgba(57, 255, 136, 0.1);
+    box-shadow: 0 0 12px rgba(57, 255, 136, 0.3);
+}
+
+.rename-form button {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid rgba(57, 255, 136, 0.3);
+    border-radius: 7px;
+    background: rgba(57, 255, 136, 0.1);
+    color: #39ff88;
+    font-size: 13px;
+    font-family: 'Courier New', Courier, monospace;
+    text-align: center;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.rename-form button:hover {
+    background: rgba(57, 255, 136, 0.25);
 }
 
 
@@ -495,13 +567,13 @@ body {
 
     text-align: center;
 
-    color: #8e96bb;
+    color: #4d8f68;
 
-    border: 1px dashed rgba(255, 255, 255, 0.15);
+    border: 1px dashed rgba(57, 255, 136, 0.25);
 
     border-radius: 18px;
 
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(57, 255, 136, 0.02);
 }
 
 
@@ -526,7 +598,7 @@ body {
 
     padding: 40px;
 
-    background: rgba(0, 0, 0, 0.85);
+    background: rgba(0, 0, 0, 0.92);
 
     backdrop-filter: blur(8px);
 
@@ -563,7 +635,8 @@ body {
     border-radius: 12px;
 
     box-shadow:
-        0 20px 60px rgba(0, 0, 0, 0.6);
+        0 0 50px rgba(57, 255, 136, 0.2),
+        0 20px 60px rgba(0, 0, 0, 0.7);
 
     transform: scale(0.8);
 
@@ -591,7 +664,7 @@ body {
 
     font-size: 40px;
 
-    color: white;
+    color: #39ff88;
 
     cursor: pointer;
 
@@ -602,6 +675,8 @@ body {
 
 .close-image:hover {
     transform: scale(1.15);
+
+    text-shadow: 0 0 15px rgba(57, 255, 136, 0.6);
 }
 
 
