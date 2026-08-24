@@ -35,8 +35,8 @@ def login():
 @app.route("/login", methods=["POST"])
 def login_check():
 
-    username = request.form.get("username")
-    password = request.form.get("password")
+    username = request.form.get("username", "").strip()
+    password = request.form.get("password", "")
 
     if username == USERNAME and password == PASSWORD:
 
@@ -45,8 +45,6 @@ def login_check():
         return redirect("/home")
 
     return "Wrong Username or Password!"
-
-
 # =========================
 # PRIVATE GALLERY
 # =========================
