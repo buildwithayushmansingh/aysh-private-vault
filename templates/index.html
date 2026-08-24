@@ -17,7 +17,9 @@
 
 <body>
 
-    <!-- NAVBAR -->
+    <!-- =========================
+         NAVBAR
+    ========================= -->
 
     <header class="navbar">
 
@@ -32,43 +34,61 @@
     </header>
 
 
-    <!-- MAIN -->
+    <!-- =========================
+         MAIN
+    ========================= -->
 
     <main class="gallery-container">
 
         <div class="gallery-header">
 
             <div>
-                <h1>My Private Gallery</h1>
+
+                <h1>
+                    My Private Gallery
+                </h1>
 
                 <p>
                     Your shared private photo collection.
                 </p>
+
             </div>
 
 
-            <!-- ADD PHOTO -->
+            <!-- =========================
+                 ADD PHOTO
+            ========================= -->
 
-          <form action="/upload" method="POST" enctype="multipart/form-data" class="upload-form">
+            <form
+                action="/upload"
+                method="POST"
+                enctype="multipart/form-data"
+                class="upload-form"
+            >
 
-    <input
-        type="file"
-        id="photo"
-        name="photo"
-        accept="image/*"
-        required
-    >
+                <input
+                    type="file"
+                    id="photo"
+                    name="photo"
+                    accept="image/*"
+                    required
+                >
 
-    <button type="submit" class="upload-button">
-        Upload Photo
-    </button>
+                <button
+                    type="submit"
+                    class="upload-button"
+                >
+                    Upload Photo
+                </button>
 
-</form>
+            </form>
 
         </div>
 
 
-        <!-- GALLERY -->
+        <!-- =========================
+             GALLERY
+        ========================= -->
 
         <div class="gallery">
 
@@ -76,31 +96,73 @@
 
             <div class="photo-card">
 
-   <img
-    src="{{ url_for('private_image', filename=photo) }}"
-    alt="Private Picture"
-    class="gallery-image"
-    onclick="openImage(this)"
->
-    <div class="photo-info">
+                <!-- PHOTO -->
 
-        <span>{{ photo }}</span>
+                <img
+                    src="{{ url_for('private_image', filename=photo) }}"
+                    alt="Private Picture"
+                    class="gallery-image"
+                    onclick="openImage(this)"
+                >
 
-        <form
-            action="{{ url_for('delete_photo', filename=photo) }}"
-            method="POST"
-            onsubmit="return confirm('Are you sure you want to delete this photo?');"
-        >
 
-            <button type="submit" class="delete-button">
-                Delete
-            </button>
+                <!-- PHOTO INFO -->
 
-        </form>
+                <div class="photo-info">
 
-    </div>
+                    <span title="{{ photo }}">
+                        {{ photo }}
+                    </span>
 
-</div>
+
+                    <!-- THREE DOT MENU -->
+
+                    <div class="photo-menu">
+
+                        <button
+                            type="button"
+                            class="menu-button"
+                            onclick="toggleMenu(this)"
+                        >
+                            ⋮
+                        </button>
+
+
+                        <!-- DROPDOWN -->
+
+                        <div class="menu-dropdown">
+
+                            <!-- RENAME -->
+
+                            <button
+                                type="button"
+                                onclick="renamePhoto('{{ photo }}', this)"
+                            >
+                                Rename
+                            </button>
+
+
+                            <!-- DELETE -->
+
+                            <form
+                                action="{{ url_for('delete_photo', filename=photo) }}"
+                                method="POST"
+                                onsubmit="return confirm('Are you sure you want to delete this photo?');"
+                            >
+
+                                <button type="submit">
+                                    Delete
+                                </button>
+
+                            </form>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
 
             {% endfor %}
 
@@ -108,17 +170,34 @@
 
     </main>
 
-<!-- FULL SCREEN IMAGE -->
 
-<div id="imageModal" class="image-modal" onclick="closeImage()">
+    <!-- =========================
+         FULL SCREEN IMAGE
+    ========================= -->
 
-    <span class="close-image">&times;</span>
+    <div
+        id="imageModal"
+        class="image-modal"
+        onclick="closeImage()"
+    >
 
-    <img id="bigImage" class="big-image">
+        <span class="close-image">
+            &times;
+        </span>
 
-</div>
-    <script src="{{ url_for('static', filename='script.js') }}">
-    </script>
+        <img
+            id="bigImage"
+            class="big-image"
+        >
+
+    </div>
+
+
+    <!-- =========================
+         JAVASCRIPT
+    ========================= -->
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
 
 </body>
 
