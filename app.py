@@ -1,22 +1,51 @@
-from flask import Flask, render_template, request, redirect, session, send_from_directory
+from flask import Flask, render_template, request, redirect, session
 import os
+
 from dotenv import load_dotenv
 
-# Load .env
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
+
+
+# =========================
+# LOAD ENVIRONMENT VARIABLES
+# =========================
+
 load_dotenv()
+
+
+# =========================
+# FLASK APP
+# =========================
 
 app = Flask(__name__)
 
-# Secret key from .env
 app.secret_key = os.getenv("SECRET_KEY")
 
-# Login credentials from .env
+
+# =========================
+# LOGIN CREDENTIALS
+# =========================
+
 USERNAME = os.getenv("VAULT_USERNAME")
 PASSWORD = os.getenv("VAULT_PASSWORD")
 
-# Private image folder
-IMAGE_FOLDER = "private_image"
-os.makedirs(IMAGE_FOLDER, exist_ok=True)
+
+# =========================
+# CLOUDINARY CONFIGURATION
+# =========================
+
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
+    secure=True
+)
+
+
+# Cloudinary folder
+CLOUDINARY_FOLDER = "private-vault"
 
 
 # =========================
@@ -25,6 +54,10 @@ os.makedirs(IMAGE_FOLDER, exist_ok=True)
 
 @app.route("/")
 def login():
+
+    if session.get("logged_in"):
+        return redirect("/home")
+
     return render_template("login.html")
 
 
@@ -45,6 +78,8 @@ def login_check():
         return redirect("/home")
 
     return "Wrong Username or Password!"
+
+
 # =========================
 # PRIVATE GALLERY
 # =========================
@@ -55,13 +90,31 @@ def home():
     if not session.get("logged_in"):
         return redirect("/")
 
-    photos = os.listdir(IMAGE_FOLDER)
+    try:
 
-    return render_template("index.html", photos=photos)
+        result = cloudinary.api.resources(
+            type="upload",
+            resource_type="image",
+            prefix=CLOUDINARY_FOLDER,
+            max_results=500
+        )
+
+        photos = result.get("resources", [])
+
+    except Exception as e:
+
+        print("Cloudinary error:", e)
+
+        photos = []
+
+    return render_template(
+        "index.html",
+        photos=photos
+    )
 
 
 # =========================
-# ADD PHOTO
+# UPLOAD PHOTO
 # =========================
 
 @app.route("/upload", methods=["POST"])
@@ -72,11 +125,24 @@ def upload():
 
     photo = request.files.get("photo")
 
-    if photo and photo.filename:
+    if not photo or not photo.filename:
+        return redirect("/home")
 
-        photo.save(
-            os.path.join(IMAGE_FOLDER, photo.filename)
+    try:
+
+        result = cloudinary.uploader.upload(
+            photo,
+            folder=CLOUDINARY_FOLDER,
+            resource_type="image",
+            use_filename=True,
+            unique_filename=True
         )
+
+        print("Uploaded:", result.get("secure_url"))
+
+    except Exception as e:
+
+        print("Upload error:", e)
 
     return redirect("/home")
 
@@ -85,64 +151,65 @@ def upload():
 # DELETE PHOTO
 # =========================
 
-@app.route("/delete/<filename>", methods=["POST"])
-def delete_photo(filename):
+@app.route("/delete/<path:public_id>", methods=["POST"])
+def delete_photo(public_id):
 
     if not session.get("logged_in"):
         return redirect("/")
 
-    file_path = os.path.join(IMAGE_FOLDER, filename)
+    try:
 
-    if os.path.exists(file_path):
-        os.remove(file_path)
+        cloudinary.uploader.destroy(
+            public_id,
+            resource_type="image"
+        )
+
+        print("Deleted:", public_id)
+
+    except Exception as e:
+
+        print("Delete error:", e)
 
     return redirect("/home")
+
 
 # =========================
 # RENAME PHOTO
 # =========================
 
-@app.route("/rename/<filename>", methods=["POST"])
-def rename_photo(filename):
+@app.route("/rename/<path:public_id>", methods=["POST"])
+def rename_photo(public_id):
 
     if not session.get("logged_in"):
         return redirect("/")
 
-    new_name = request.form.get("new_name")
+    new_name = request.form.get("new_name", "").strip()
 
     if not new_name:
         return redirect("/home")
 
-    old_path = os.path.join(IMAGE_FOLDER, filename)
+    try:
 
-    # Get original extension
-    extension = os.path.splitext(filename)[1]
+        # Remove extension if user enters one
+        new_name = os.path.splitext(new_name)[0]
 
-    # Remove extension if user accidentally enters it
-    new_name = os.path.splitext(new_name)[0]
+        # Keep photo inside private-vault folder
+        new_public_id = f"{CLOUDINARY_FOLDER}/{new_name}"
 
-    # Keep original extension
-    new_name = new_name + extension
+        cloudinary.uploader.rename(
+            public_id,
+            new_public_id,
+            resource_type="image",
+            overwrite=False
+        )
 
-    new_path = os.path.join(IMAGE_FOLDER, new_name)
+        print("Renamed:", public_id, "→", new_public_id)
 
-    # Don't overwrite an existing file
-    if os.path.exists(old_path) and not os.path.exists(new_path):
+    except Exception as e:
 
-        os.rename(old_path, new_path)
+        print("Rename error:", e)
 
     return redirect("/home")
-# =========================
-# SHOW PRIVATE IMAGE
-# =========================
-
-@app.route("/private-image/<filename>")
-def private_image(filename):
-
-    if not session.get("logged_in"):
-        return redirect("/")
-
-    return send_from_directory(IMAGE_FOLDER, filename)
 
 
 # =========================
@@ -162,4 +229,9 @@ def logout():
 # =========================
 
 if __name__ == "__main__":
-    app.run(debug=True)
+
+    app.run(
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 5000)),
+        debug=True
+    )
