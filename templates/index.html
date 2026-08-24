@@ -92,82 +92,94 @@
 
         <div class="gallery">
 
-            {% for photo in photos %}
+    {% for photo in photos %}
 
-            <div class="photo-card">
+    <div class="photo-card">
 
-                <!-- PHOTO -->
+        <img
+            src="{{ photo.url }}"
+            alt="Private Picture"
+            class="gallery-image"
+            onclick="openImage(this)"
+        >
 
-                <img
-                    src="{{ url_for('private_image', filename=photo) }}"
-                    alt="Private Picture"
-                    class="gallery-image"
-                    onclick="openImage(this)"
+        <div class="photo-info">
+
+            <span title="{{ photo.filename }}">
+                {{ photo.filename }}
+            </span>
+
+            <div class="photo-menu">
+
+                <button
+                    type="button"
+                    class="menu-button"
+                    onclick="toggleMenu(this)"
                 >
+                    ⋮
+                </button>
 
+                <div class="menu-dropdown">
 
-                <!-- PHOTO INFO -->
+                    <!-- RENAME -->
 
-                <div class="photo-info">
+                    <form
+                        action="/rename"
+                        method="POST"
+                        class="rename-form"
+                    >
 
-                    <span title="{{ photo }}">
-                        {{ photo }}
-                    </span>
-
-
-                    <!-- THREE DOT MENU -->
-
-                    <div class="photo-menu">
-
-                        <button
-                            type="button"
-                            class="menu-button"
-                            onclick="toggleMenu(this)"
+                        <input
+                            type="hidden"
+                            name="old_public_id"
+                            value="{{ photo.public_id }}"
                         >
-                            ⋮
+
+                        <input
+                            type="text"
+                            name="new_name"
+                            placeholder="New name"
+                            required
+                        >
+
+                        <button type="submit">
+                            Rename
                         </button>
 
-
-                        <!-- DROPDOWN -->
-
-                        <div class="menu-dropdown">
-
-                            <!-- RENAME -->
-
-                            <button
-                                type="button"
-                                onclick="renamePhoto('{{ photo }}', this)"
-                            >
-                                Rename
-                            </button>
+                    </form>
 
 
-                            <!-- DELETE -->
+                    <!-- DELETE -->
 
-                            <form
-                                action="{{ url_for('delete_photo', filename=photo) }}"
-                                method="POST"
-                                onsubmit="return confirm('Are you sure you want to delete this photo?');"
-                            >
+                    <form
+                        action="/delete"
+                        method="POST"
+                        onsubmit="return confirm('Delete this photo?');"
+                    >
 
-                                <button type="submit">
-                                    Delete
-                                </button>
+                        <input
+                            type="hidden"
+                            name="public_id"
+                            value="{{ photo.public_id }}"
+                        >
 
-                            </form>
+                        <button type="submit">
+                            Delete
+                        </button>
 
-                        </div>
-
-                    </div>
+                    </form>
 
                 </div>
 
             </div>
 
-            {% endfor %}
-
         </div>
 
+    </div>
+
+    {% endfor %}
+
+</div>
     </main>
 
 
