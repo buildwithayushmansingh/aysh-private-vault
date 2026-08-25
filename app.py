@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, session
 import os
+import secrets
 
 from dotenv import load_dotenv
 
@@ -37,6 +38,18 @@ app.secret_key = os.getenv("SECRET_KEY")
 
 
 # =========================================================
+# SESSION GENERATION
+# =========================================================
+# Every time this value changes, all old login sessions
+# become invalid.
+#
+# No database required.
+# =========================================================
+
+SESSION_GENERATION = secrets.token_hex(32)
+
+
+# =========================================================
 # LOGIN CREDENTIALS
 # =========================================================
 
@@ -49,6 +62,35 @@ PASSWORD = os.getenv("VAULT_PASSWORD")
 # =========================================================
 
 CLOUDINARY_FOLDER = "private-vault"
+
+
+# =========================================================
+# CHECK LOGIN SESSION
+# =========================================================
+
+@app.before_request
+def check_session():
+
+    # These routes should work without login
+    allowed_endpoints = [
+        "login",
+        "login_check",
+        "static"
+    ]
+
+    if request.endpoint in allowed_endpoints:
+        return
+
+    # If user is logged in, check whether the session
+    # belongs to the current session generation.
+    if session.get("logged_in"):
+
+        if session.get("session_generation") != SESSION_GENERATION:
+
+            # Old session -> logout
+            session.clear()
+
+            return redirect("/")
 
 
 # =========================================================
@@ -76,7 +118,12 @@ def login_check():
 
     if username == USERNAME and password == PASSWORD:
 
+        session.clear()
+
         session["logged_in"] = True
+
+        # Store current session generation
+        session["session_generation"] = SESSION_GENERATION
 
         return redirect("/home")
 
@@ -197,7 +244,7 @@ def delete_photo():
 def rename_photo():
 
     if not session.get("logged_in"):
-        return redirect("/home")
+        return redirect("/")
 
     old_public_id = request.form.get("old_public_id")
     new_name = request.form.get("new_name", "").strip()
@@ -208,7 +255,7 @@ def rename_photo():
     # Remove extension if user enters one
     new_name = os.path.splitext(new_name)[0]
 
-    # Keep the file inside our Cloudinary folder
+    # Keep photo inside private-vault folder
     new_public_id = f"{CLOUDINARY_FOLDER}/{new_name}"
 
     try:
@@ -230,12 +277,33 @@ def rename_photo():
 
 
 # =========================================================
-# LOGOUT
+# LOGOUT CURRENT DEVICE
 # =========================================================
 
 @app.route("/logout")
 def logout():
 
+    session.clear()
+
+    return redirect("/")
+
+
+# =========================================================
+# LOGOUT ALL DEVICES
+# =========================================================
+
+@app.route("/logout-all", methods=["POST"])
+def logout_all():
+
+    global SESSION_GENERATION
+
+    # Generate a completely new session generation.
+    #
+    # All previously logged-in devices have the OLD generation.
+    # Therefore, they will automatically become invalid.
+    SESSION_GENERATION = secrets.token_hex(32)
+
+    # Logout current device too
     session.clear()
 
     return redirect("/")

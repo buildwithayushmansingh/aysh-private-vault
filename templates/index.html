@@ -29,11 +29,42 @@
 
         <div class="navbar-right">
 
-            <button class="theme-toggle" onclick="toggleTheme()" id="themeToggleBtn">
+            <!-- THEME -->
+
+            <button
+                class="theme-toggle"
+                onclick="toggleTheme()"
+                id="themeToggleBtn"
+                type="button"
+            >
                 🖥️ Terminal Mode
             </button>
 
-            <a href="/logout" class="logout">
+
+            <!-- LOGOUT ALL DEVICES -->
+
+            <form
+                action="/logout-all"
+                method="POST"
+                onsubmit="return confirm('Logout from all devices?');"
+            >
+
+                <button
+                    type="submit"
+                    class="logout-all"
+                >
+                    Logout All Devices
+                </button>
+
+            </form>
+
+
+            <!-- CURRENT DEVICE LOGOUT -->
+
+            <a
+                href="/logout"
+                class="logout"
+            >
                 Logout
             </a>
 
@@ -47,6 +78,10 @@
     ========================= -->
 
     <main class="gallery-container">
+
+        <!-- =========================
+             HEADER
+        ========================= -->
 
         <div class="gallery-header">
 
@@ -100,104 +135,125 @@
 
         <div class="gallery">
 
-    {% for photo in photos %}
+            {% for photo in photos %}
 
-    <div class="photo-card">
+            <div class="photo-card">
 
-        <img
-            src="{{ photo.url }}"
-            alt="Private Picture"
-            class="gallery-image"
-            onclick="openImage(this)"
-        >
+                <!-- PHOTO -->
 
-        <div class="photo-info">
-
-            <span title="{{ photo.filename }}">
-                {{ photo.filename }}
-            </span>
-
-            <div class="photo-menu">
-
-                <button
-                    type="button"
-                    class="menu-button"
-                    onclick="toggleMenu(this)"
+                <img
+                    src="{{ photo.url }}"
+                    alt="Private Picture"
+                    class="gallery-image"
+                    onclick="openImage(this)"
                 >
-                    ⋮
-                </button>
 
-                <div class="menu-dropdown">
 
-                    <!-- DOWNLOAD -->
+                <!-- PHOTO INFO -->
 
-                    <a
-                        href="{{ photo.url.replace('/upload/', '/upload/fl_attachment/') }}"
-                        class="download-link"
-                        download
-                    >
-                        Download
-                    </a>
+                <div class="photo-info">
 
-                    <!-- RENAME -->
+                    <span title="{{ photo.filename }}">
+                        {{ photo.filename }}
+                    </span>
 
-                    <form
-                        action="/rename"
-                        method="POST"
-                        class="rename-form"
-                    >
 
-                        <input
-                            type="hidden"
-                            name="old_public_id"
-                            value="{{ photo.public_id }}"
+                    <!-- THREE DOT MENU -->
+
+                    <div class="photo-menu">
+
+                        <button
+                            type="button"
+                            class="menu-button"
+                            onclick="toggleMenu(this)"
                         >
-
-                        <input
-                            type="text"
-                            name="new_name"
-                            placeholder="New name"
-                            required
-                        >
-
-                        <button type="submit">
-                            Rename
+                            ⋮
                         </button>
 
-                    </form>
+
+                        <div class="menu-dropdown">
 
 
-                    <!-- DELETE -->
+                            <!-- =====================
+                                 DOWNLOAD
+                            ====================== -->
 
-                    <form
-                        action="/delete"
-                        method="POST"
-                        onsubmit="return confirm('Delete this photo?');"
-                    >
+                            <a
+                                href="{{ photo.url.replace('/upload/', '/upload/fl_attachment/') }}"
+                                class="download-link"
+                            >
+                                Download
+                            </a>
 
-                        <input
-                            type="hidden"
-                            name="public_id"
-                            value="{{ photo.public_id }}"
-                        >
 
-                        <button type="submit">
-                            Delete
-                        </button>
+                            <!-- =====================
+                                 RENAME
+                            ====================== -->
 
-                    </form>
+                            <form
+                                action="/rename"
+                                method="POST"
+                                class="rename-form"
+                            >
+
+                                <input
+                                    type="hidden"
+                                    name="old_public_id"
+                                    value="{{ photo.public_id }}"
+                                >
+
+                                <input
+                                    type="text"
+                                    name="new_name"
+                                    placeholder="New name"
+                                    required
+                                >
+
+                                <button
+                                    type="submit"
+                                >
+                                    Rename
+                                </button>
+
+                            </form>
+
+
+                            <!-- =====================
+                                 DELETE
+                            ====================== -->
+
+                            <form
+                                action="/delete"
+                                method="POST"
+                                onsubmit="return confirm('Delete this photo?');"
+                            >
+
+                                <input
+                                    type="hidden"
+                                    name="public_id"
+                                    value="{{ photo.public_id }}"
+                                >
+
+                                <button
+                                    type="submit"
+                                >
+                                    Delete
+                                </button>
+
+                            </form>
+
+                        </div>
+
+                    </div>
 
                 </div>
 
             </div>
 
+            {% endfor %}
+
         </div>
 
-    </div>
-
-    {% endfor %}
-
-</div>
     </main>
 
 

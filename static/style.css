@@ -662,3 +662,73 @@ body {
         height: 320px;
     }
 }
+
+/* =========================
+   NAVBAR RIGHT
+========================= */
+
+.navbar-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+
+/* =========================
+   LOGOUT ALL DEVICES
+========================= */
+
+.navbar-right form {
+    margin: 0;
+}
+
+.logout-all {
+    padding: 10px 16px;
+
+    border-radius: 10px;
+
+    border: 1px solid rgba(255, 100, 100, 0.25);
+
+    background: rgba(255, 70, 70, 0.10);
+
+    color: #ff9b9b;
+
+    font-size: 14px;
+
+    cursor: pointer;
+
+    transition: 0.3s ease;
+}
+
+.logout-all:hover {
+    background: rgba(255, 70, 70, 0.20);
+
+    color: white;
+
+    transform: translateY(-1px);
+}
+
+
+/* =========================
+   MOBILE
+========================= */
+
+@media (max-width: 700px) {
+
+    .navbar {
+        height: auto;
+        min-height: 75px;
+
+        padding: 12px 20px;
+    }
+
+    .navbar-right {
+        gap: 6px;
+    }
+
+    .logout-all {
+        padding: 8px 10px;
+        font-size: 12px;
+    }
+
+}
