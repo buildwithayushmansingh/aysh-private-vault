@@ -132,3 +132,37 @@ function renamePhoto(filename, button) {
 
     form.submit();
 }
+// =========================
+// THEME TOGGLE
+// =========================
+
+function applyTheme(theme) {
+
+    if (theme === "terminal") {
+        document.body.setAttribute("data-theme", "terminal");
+    } else {
+        document.body.removeAttribute("data-theme");
+    }
+
+    const btn = document.getElementById("themeToggleBtn");
+
+    if (btn) {
+        btn.textContent = theme === "terminal" ? "🌌 Normal Mode" : "🖥️ Terminal Mode";
+    }
+}
+
+function toggleTheme() {
+
+    const current = document.body.getAttribute("data-theme");
+
+    const next = current === "terminal" ? "normal" : "terminal";
+
+    localStorage.setItem("vaultTheme", next);
+
+    applyTheme(next);
+}
+
+// Apply saved theme on page load
+const savedTheme = localStorage.getItem("vaultTheme") || "normal";
+
+applyTheme(savedTheme);

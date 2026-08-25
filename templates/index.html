@@ -27,9 +27,17 @@
             🔐 Private Vault
         </div>
 
-        <a href="/logout" class="logout">
-            Logout
-        </a>
+        <div class="navbar-right">
+
+            <button class="theme-toggle" onclick="toggleTheme()" id="themeToggleBtn">
+                🖥️ Terminal Mode
+            </button>
+
+            <a href="/logout" class="logout">
+                Logout
+            </a>
+
+        </div>
 
     </header>
 
@@ -120,6 +128,16 @@
                 </button>
 
                 <div class="menu-dropdown">
+
+                    <!-- DOWNLOAD -->
+
+                    
+                        href="{{ photo.url.replace('/upload/', '/upload/fl_attachment/') }}"
+                        class="download-link"
+                        download
+                    >
+                        Download
+                    </a>
 
                     <!-- RENAME -->
 
