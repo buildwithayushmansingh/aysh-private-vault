@@ -110,6 +110,8 @@ def load_activity_log():
         print("Activity log load error (probably doesn't exist yet):", e)
 
         return []
+
+
 def save_activity_log(entries):
 
     # Keep only the most recent 100 entries
@@ -133,6 +135,7 @@ def save_activity_log(entries):
 
         print("Activity log save error:", e)
 
+
 def add_activity(action, filename, actor, action_type, device=None):
 
     entries = load_activity_log()
@@ -147,6 +150,7 @@ def add_activity(action, filename, actor, action_type, device=None):
     })
 
     save_activity_log(entries)
+
 
 # =========================================================
 # DEVICE LABEL FROM USER-AGENT
@@ -235,22 +239,22 @@ def login_check():
 
         session["display_name"] = display_name if display_name else "Someone"
 
-      # Track this session as an active device.
-# Keyed by device type + IP, so re-logging in from the
-# same device updates its entry instead of duplicating it.
-device_label = get_device_label(request.headers.get("User-Agent"))
+        # Track this session as an active device.
+        # Keyed by device type + IP, so re-logging in from the
+        # same device updates its entry instead of duplicating it.
+        device_label = get_device_label(request.headers.get("User-Agent"))
 
-sid = f"{device_label}_{request.remote_addr}"
+        sid = f"{device_label}_{request.remote_addr}"
 
-session["sid"] = sid
+        session["sid"] = sid
 
-ACTIVE_SESSIONS[sid] = {
-    "name": session["display_name"],
-    "device": device_label,
-    "login_time": datetime.now().strftime("%d %b, %I:%M %p")
-}
+        ACTIVE_SESSIONS[sid] = {
+            "name": session["display_name"],
+            "device": device_label,
+            "login_time": datetime.now().strftime("%d %b, %I:%M %p")
+        }
 
-       add_activity("logged in", None, session["display_name"], "login", device=device_label)
+        add_activity("logged in", None, session["display_name"], "login", device=device_label)
 
         return redirect("/home")
 
