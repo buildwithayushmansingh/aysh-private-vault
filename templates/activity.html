@@ -84,10 +84,11 @@
                 <div>
 
                     <div class="activity-text">
-                        <strong>{{ entry.actor }}</strong>
-                        {{ entry.action }}
-                        {% if entry.filename %}"{{ entry.filename }}"{% endif %}
-                    </div>
+    <strong>{{ entry.actor }}</strong>
+    {{ entry.action }}
+    {% if entry.filename %}"{{ entry.filename }}"{% endif %}
+    {% if entry.device %}from {{ entry.device }}{% endif %}
+</div>
 
                     <div class="activity-time">
                         {{ entry.timestamp }}

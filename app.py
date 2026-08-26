@@ -87,10 +87,16 @@ def load_activity_log():
 
     try:
 
+        import time
+
         url = cloudinary.utils.cloudinary_url(
             ACTIVITY_LOG_PUBLIC_ID,
             resource_type="raw"
         )[0]
+
+        # Cache-bust so we always get the freshest version,
+        # since Cloudinary's CDN can serve stale cached copies.
+        url = f"{url}?t={int(time.time())}"
 
         import urllib.request
 
@@ -104,8 +110,6 @@ def load_activity_log():
         print("Activity log load error (probably doesn't exist yet):", e)
 
         return []
-
-
 def save_activity_log(entries):
 
     # Keep only the most recent 100 entries
@@ -121,15 +125,15 @@ def save_activity_log(entries):
             io.BytesIO(json_bytes),
             public_id=ACTIVITY_LOG_PUBLIC_ID,
             resource_type="raw",
-            overwrite=True
+            overwrite=True,
+            invalidate=True
         )
 
     except Exception as e:
 
         print("Activity log save error:", e)
 
-
-def add_activity(action, filename, actor, action_type):
+def add_activity(action, filename, actor, action_type, device=None):
 
     entries = load_activity_log()
 
@@ -138,11 +142,11 @@ def add_activity(action, filename, actor, action_type):
         "action_type": action_type,
         "filename": filename,
         "actor": actor,
+        "device": device,
         "timestamp": datetime.now().strftime("%d %b, %I:%M %p")
     })
 
     save_activity_log(entries)
-
 
 # =========================================================
 # DEVICE LABEL FROM USER-AGENT
@@ -231,18 +235,22 @@ def login_check():
 
         session["display_name"] = display_name if display_name else "Someone"
 
-        # Track this session as an active device
-        sid = secrets.token_hex(8)
+      # Track this session as an active device.
+# Keyed by device type + IP, so re-logging in from the
+# same device updates its entry instead of duplicating it.
+device_label = get_device_label(request.headers.get("User-Agent"))
 
-        session["sid"] = sid
+sid = f"{device_label}_{request.remote_addr}"
 
-        ACTIVE_SESSIONS[sid] = {
-            "name": session["display_name"],
-            "device": get_device_label(request.headers.get("User-Agent")),
-            "login_time": datetime.now().strftime("%d %b, %I:%M %p")
-        }
+session["sid"] = sid
 
-        add_activity("logged in", None, session["display_name"], "login")
+ACTIVE_SESSIONS[sid] = {
+    "name": session["display_name"],
+    "device": device_label,
+    "login_time": datetime.now().strftime("%d %b, %I:%M %p")
+}
+
+       add_activity("logged in", None, session["display_name"], "login", device=device_label)
 
         return redirect("/home")
 
