@@ -27,6 +27,17 @@
             🔐 Private Vault
         </div>
 
+        <!-- PAGE TABS -->
+
+        <nav class="page-nav">
+
+            <a href="/home" class="active">Gallery</a>
+            <a href="/security">Security</a>
+            <a href="/activity">Activity</a>
+            <a href="/storage">Storage</a>
+
+        </nav>
+
         <div class="navbar-right">
 
             <!-- THEME -->
@@ -61,7 +72,7 @@
 
             <!-- CURRENT DEVICE LOGOUT -->
 
-            <a
+            
                 href="/logout"
                 class="logout"
             >
@@ -178,7 +189,7 @@
                                  DOWNLOAD
                             ====================== -->
 
-                            <a
+                            
                                 href="{{ photo.url.replace('/upload/', '/upload/fl_attachment/') }}"
                                 class="download-link"
                             >

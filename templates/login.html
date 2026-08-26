@@ -11,6 +11,14 @@
 </head>
 
 <body>
+    <script>
+    (function () {
+        const savedTheme = localStorage.getItem("vaultTheme");
+        if (savedTheme === "terminal") {
+            document.body.setAttribute("data-theme", "terminal");
+        }
+    })();
+</script>
 
     <div class="container">
 

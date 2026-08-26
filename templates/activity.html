@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Activity</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+
+</head>
+
+<body>
+
+    <header class="navbar">
+
+        <div class="logo">
+            🔐 Private Vault
+        </div>
+
+        <nav class="page-nav">
+
+            <a href="/home">Gallery</a>
+            <a href="/security">Security</a>
+            <a href="/activity" class="active">Activity</a>
+            <a href="/storage">Storage</a>
+
+        </nav>
+
+        <div class="navbar-right">
+
+            <button
+                class="theme-toggle"
+                onclick="toggleTheme()"
+                id="themeToggleBtn"
+                type="button"
+            >
+                🖥️ Terminal Mode
+            </button>
+
+            <form
+                action="/logout-all"
+                method="POST"
+                onsubmit="return confirm('Logout from all devices?');"
+            >
+                <button type="submit" class="logout-all">
+                    Logout All Devices
+                </button>
+            </form>
+
+            <a href="/logout" class="logout">
+                Logout
+            </a>
+
+        </div>
+
+    </header>
+
+
+    <main class="page-container">
+
+        <h1>🕒 Recent Activity</h1>
+
+        <p class="page-subtitle">
+            A live log of uploads, renames, deletes, and logins.
+        </p>
+
+
+        {% if entries %}
+
+        <div class="activity-list">
+
+            {% for entry in entries %}
+
+            <div class="activity-item">
+
+                <span class="activity-dot {{ entry.action.split(' ')[0] if entry.action == 'logged in' else entry.action }}"></span>
+
+                <div>
+
+                    <div class="activity-text">
+                        <strong>{{ entry.actor }}</strong>
+                        {{ entry.action }}
+                        {% if entry.filename %}"{{ entry.filename }}"{% endif %}
+                    </div>
+
+                    <div class="activity-time">
+                        {{ entry.timestamp }}
+                    </div>
+
+                </div>
+
+            </div>
+
+            {% endfor %}
+
+        </div>
+
+        {% else %}
+
+        <div class="activity-empty">
+            No activity yet. Upload a photo to get started.
+        </div>
+
+        {% endif %}
+
+    </main>
+
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+
+</body>
+
+</html>

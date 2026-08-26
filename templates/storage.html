@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Storage</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+
+</head>
+
+<body>
+
+    <header class="navbar">
+
+        <div class="logo">
+            🔐 Private Vault
+        </div>
+
+        <nav class="page-nav">
+
+            <a href="/home">Gallery</a>
+            <a href="/security">Security</a>
+            <a href="/activity">Activity</a>
+            <a href="/storage" class="active">Storage</a>
+
+        </nav>
+
+        <div class="navbar-right">
+
+            <button
+                class="theme-toggle"
+                onclick="toggleTheme()"
+                id="themeToggleBtn"
+                type="button"
+            >
+                🖥️ Terminal Mode
+            </button>
+
+            <form
+                action="/logout-all"
+                method="POST"
+                onsubmit="return confirm('Logout from all devices?');"
+            >
+                <button type="submit" class="logout-all">
+                    Logout All Devices
+                </button>
+            </form>
+
+            <a href="/logout" class="logout">
+                Logout
+            </a>
+
+        </div>
+
+    </header>
+
+
+    <main class="page-container">
+
+        <h1>📊 Storage</h1>
+
+        <p class="page-subtitle">
+            Live usage pulled directly from your Cloudinary account.
+        </p>
+
+
+        <div class="stat-grid">
+
+            <div class="info-card">
+                <div class="info-card-title">Photos</div>
+                <div class="info-card-value">{{ photo_count }}</div>
+            </div>
+
+            <div class="info-card">
+                <div class="info-card-title">Storage Used</div>
+                <div class="info-card-value">{{ storage_mb }} MB</div>
+                <div class="info-card-sub">of {{ storage_limit_mb }} MB available</div>
+            </div>
+
+        </div>
+
+
+        <div class="info-card">
+
+            <div class="info-card-title">Cloudinary Usage</div>
+
+            <div class="info-card-value">{{ percent_used }}%</div>
+
+            <div class="progress-bar-outer">
+                <div class="progress-bar-inner" style="width: {{ percent_used }}%;"></div>
+            </div>
+
+        </div>
+
+    </main>
+
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+
+</body>
+
+</html>

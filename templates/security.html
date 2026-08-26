@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Security</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+
+</head>
+
+<body>
+
+    <header class="navbar">
+
+        <div class="logo">
+            🔐 Private Vault
+        </div>
+
+        <nav class="page-nav">
+
+            <a href="/home">Gallery</a>
+            <a href="/security" class="active">Security</a>
+            <a href="/activity">Activity</a>
+            <a href="/storage">Storage</a>
+
+        </nav>
+
+        <div class="navbar-right">
+
+            <button
+                class="theme-toggle"
+                onclick="toggleTheme()"
+                id="themeToggleBtn"
+                type="button"
+            >
+                🖥️ Terminal Mode
+            </button>
+
+            <form
+                action="/logout-all"
+                method="POST"
+                onsubmit="return confirm('Logout from all devices?');"
+            >
+                <button type="submit" class="logout-all">
+                    Logout All Devices
+                </button>
+            </form>
+
+            <a href="/logout" class="logout">
+                Logout
+            </a>
+
+        </div>
+
+    </header>
+
+
+    <main class="page-container">
+
+        <h1>🔐 Security</h1>
+
+        <p class="page-subtitle">
+            Manage login sessions and account protection.
+        </p>
+
+
+        <!-- LOGIN STATUS -->
+
+        <div class="info-card">
+
+            <div class="info-card-title">Login Status</div>
+
+            <span class="status-badge">
+                <span class="status-dot"></span>
+                Protected
+            </span>
+
+        </div>
+
+
+        <!-- STATS GRID -->
+
+        <div class="stat-grid">
+
+            <div class="info-card">
+                <div class="info-card-title">Active Sessions</div>
+                <div class="info-card-value">{{ active_session_count }} device{{ 's' if active_session_count != 1 else '' }}</div>
+            </div>
+
+            <div class="info-card">
+                <div class="info-card-title">Last Login</div>
+                <div class="info-card-value">{{ last_login }}</div>
+            </div>
+
+        </div>
+
+
+        <!-- LOGOUT ALL -->
+
+        <div class="info-card">
+
+            <div class="info-card-title">Session Control</div>
+
+            <div class="info-card-sub" style="margin-bottom: 10px;">
+                Instantly sign out every device currently logged in, including this one.
+            </div>
+
+            <form
+                action="/logout-all"
+                method="POST"
+                onsubmit="return confirm('Logout from all devices? Everyone will need to log in again.');"
+            >
+                <button type="submit" class="security-action-btn">
+                    Logout All Devices
+                </button>
+            </form>
+
+        </div>
+
+
+        <!-- PASSWORD INFO -->
+
+        <div class="info-card">
+            <div class="info-card-title">Password</div>
+            <div class="info-card-value" style="font-size: 16px;">
+                Set via environment variables
+            </div>
+            <div class="info-card-sub">
+                Change VAULT_PASSWORD in Render's dashboard to update it.
+            </div>
+        </div>
+
+    </main>
+
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+
+</body>
+
+</html>
