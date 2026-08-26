@@ -209,10 +209,58 @@ body {
     box-shadow: 0 0 15px var(--accent-glow);
 }
 
+/* =========================
+   RESPONSIVE NAVBAR
+========================= */
+
 @media (max-width: 900px) {
 
+    .navbar {
+        flex-wrap: wrap;
+        height: auto;
+        min-height: 75px;
+        row-gap: 12px;
+        padding: 14px 20px;
+    }
+
+    .logo {
+        order: 1;
+    }
+
+    .navbar-right {
+        order: 2;
+    }
+
     .page-nav {
+        order: 3;
+
+        width: 100%;
+
+        display: flex;
+
+        overflow-x: auto;
+
+        -webkit-overflow-scrolling: touch;
+
+        scrollbar-width: none;
+
+        gap: 8px;
+
+        padding-bottom: 2px;
+    }
+
+    .page-nav::-webkit-scrollbar {
         display: none;
+    }
+
+    .page-nav a {
+        flex-shrink: 0;
+
+        white-space: nowrap;
+
+        padding: 8px 14px;
+
+        font-size: 13px;
     }
 }
 
