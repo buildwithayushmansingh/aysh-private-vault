@@ -330,6 +330,8 @@ if (chatWindow && chatForm && chatInput) {
         }
     }
 
+    window.deleteMessage = deleteMessage;
+
 
     // =========================
     // CLEAR ENTIRE CHAT
@@ -357,5 +359,7 @@ if (chatWindow && chatForm && chatInput) {
 
         }
     }
+
+    window.clearChat = clearChat;
 
 }
