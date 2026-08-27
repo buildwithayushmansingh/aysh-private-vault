@@ -302,6 +302,7 @@ if (chatWindow && chatForm && chatInput) {
             fetchMessages();
         }
     });
+
     // =========================
     // DELETE ONE MESSAGE
     // =========================
@@ -356,3 +357,5 @@ if (chatWindow && chatForm && chatInput) {
 
         }
     }
+
+}
