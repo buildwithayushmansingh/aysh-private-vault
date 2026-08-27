@@ -292,60 +292,67 @@ if (chatWindow && chatForm && chatInput) {
     // Initial scroll to bottom on page load
     scrollChatToBottom();
 
-    // Auto-refresh every 3 seconds
-    setInterval(fetchMessages, 3000);
-}
-// =========================
-// DELETE ONE MESSAGE
-// =========================
+    // Auto-refresh every 1.5 seconds
+    setInterval(fetchMessages, 1500);
 
-async function deleteMessage(id) {
-
-    try {
-
-        const response = await fetch("/api/delete-message", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: id })
-        });
-
-        const data = await response.json();
-
-        if (data.messages) {
-            renderMessages(data.messages);
+    // Also refresh immediately whenever the tab becomes active again,
+    // so reopening the chat doesn't wait for the next timer tick
+    document.addEventListener("visibilitychange", function () {
+        if (!document.hidden) {
+            fetchMessages();
         }
+    });
+    // =========================
+    // DELETE ONE MESSAGE
+    // =========================
 
-    } catch (error) {
+    async function deleteMessage(id) {
 
-        console.log("Delete message error:", error);
+        try {
 
+            const response = await fetch("/api/delete-message", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: id })
+            });
+
+            const data = await response.json();
+
+            if (data.messages) {
+                renderMessages(data.messages);
+            }
+
+        } catch (error) {
+
+            console.log("Delete message error:", error);
+
+        }
     }
-}
 
 
-// =========================
-// CLEAR ENTIRE CHAT
-// =========================
+    // =========================
+    // CLEAR ENTIRE CHAT
+    // =========================
 
-async function clearChat() {
+    async function clearChat() {
 
-    const confirmClear = confirm("Clear the entire chat? This cannot be undone.");
+        const confirmClear = confirm("Clear the entire chat? This cannot be undone.");
 
-    if (!confirmClear) return;
+        if (!confirmClear) return;
 
-    try {
+        try {
 
-        const response = await fetch("/api/clear-chat", {
-            method: "POST"
-        });
+            const response = await fetch("/api/clear-chat", {
+                method: "POST"
+            });
 
-        const data = await response.json();
+            const data = await response.json();
 
-        renderMessages(data.messages);
+            renderMessages(data.messages);
 
-    } catch (error) {
+        } catch (error) {
 
-        console.log("Clear chat error:", error);
+            console.log("Clear chat error:", error);
 
+        }
     }
-}

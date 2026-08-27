@@ -1174,6 +1174,10 @@ body {
     font-size: 14px;
 
     line-height: 1.4;
+
+    overflow-wrap: anywhere;
+
+    word-break: break-word;
 }
 
 .chat-bubble-row.mine .chat-bubble {
@@ -1285,7 +1289,12 @@ body {
     .chat-bubble {
         max-width: 85%;
     }
+
+    .chat-window {
+        overflow-x: hidden;
+    }
 }
+
 /* =========================
    CHAT HEADER ROW
 ========================= */
