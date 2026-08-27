@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Chat</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+
+</head>
+
+<body>
+
+    <header class="navbar">
+
+        <div class="logo">
+            🔐 Private Vault
+        </div>
+
+        <nav class="page-nav">
+
+            <a href="/home">Gallery</a>
+            <a href="/security">Security</a>
+            <a href="/activity">Activity</a>
+            <a href="/storage">Storage</a>
+            <a href="/chat" class="active">Chat</a>
+
+        </nav>
+
+        <div class="navbar-right">
+
+            <button
+                class="theme-toggle"
+                onclick="toggleTheme()"
+                id="themeToggleBtn"
+                type="button"
+            >
+                🖥️ Terminal Mode
+            </button>
+
+            <form
+                action="/logout-all"
+                method="POST"
+                onsubmit="return confirm('Logout from all devices?');"
+            >
+                <button type="submit" class="logout-all">
+                    Logout All Devices
+                </button>
+            </form>
+
+            <a href="/logout" class="logout">
+                Logout
+            </a>
+
+        </div>
+
+    </header>
+
+
+    <!-- =========================
+         WELCOME BANNER
+    ========================= -->
+
+    <div class="welcome-banner">
+        Welcome, <strong>{{ identity_name }}</strong> 👋
+    </div>
+
+
+    <main class="page-container chat-page">
+
+        <div class="chat-header-row">
+
+    <div>
+        <h1>💬 Chat</h1>
+        <p class="page-subtitle">
+            A private space just between the two of you.
+        </p>
+    </div>
+
+    <button
+        type="button"
+        class="clear-chat-button"
+        onclick="clearChat()"
+    >
+        Clear Chat
+    </button>
+
+</div>
+
+
+        <div class="chat-window" id="chatWindow">
+
+            {% if messages %}
+
+                {% for msg in messages %}
+
+                <div class="chat-bubble-row {{ 'mine' if msg.sender == identity_name else 'theirs' }}">
+
+    <div class="chat-bubble">
+
+        <div class="chat-bubble-sender">
+            {{ msg.sender }}
+        </div>
+
+        <div class="chat-bubble-text">
+            {{ msg.text }}
+        </div>
+
+        <div class="chat-bubble-time">
+            {{ msg.timestamp }}
+        </div>
+
+        {% if msg.sender == identity_name %}
+        <button
+            type="button"
+            class="chat-delete-button"
+            onclick="deleteMessage('{{ msg.id }}')"
+        >
+            🗑
+        </button>
+        {% endif %}
+
+    </div>
+
+</div>
+
+                {% endfor %}
+
+            {% else %}
+
+                <div class="chat-empty">
+                    No messages yet. Say hi 👋
+                </div>
+
+            {% endif %}
+
+        </div>
+
+
+        <form id="chatForm" class="chat-input-form">
+
+            <input
+                type="text"
+                id="chatInput"
+                placeholder="Type a message..."
+                autocomplete="off"
+                required
+            >
+
+            <button type="submit" class="chat-send-button">
+                Send
+            </button>
+
+        </form>
+
+    </main>
+
+
+    <script>
+        const CURRENT_IDENTITY = "{{ identity_name }}";
+    </script>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+
+</body>
+
+</html>

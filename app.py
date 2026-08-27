@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, session
+from flask import Flask, render_template, request, redirect, session, jsonify
 import os
 import secrets
 import json
@@ -55,9 +55,19 @@ SESSION_GENERATION = secrets.token_hex(32)
 # =========================================================
 # LOGIN CREDENTIALS
 # =========================================================
+# Two usernames, one shared password. Whichever username
+# is used to log in becomes that person's identity for the
+# session - this is what powers the Welcome banner and
+# chat sender name reliably (unlike the free-text display
+# name box, which is just a casual label for activity logs).
+# =========================================================
 
-USERNAME = os.getenv("VAULT_USERNAME")
 PASSWORD = os.getenv("VAULT_PASSWORD")
+
+USERS = {
+    (os.getenv("VAULT_USERNAME_1") or "").strip().lower(): os.getenv("VAULT_LABEL_1", "Person 1"),
+    (os.getenv("VAULT_USERNAME_2") or "").strip().lower(): os.getenv("VAULT_LABEL_2", "Person 2"),
+}
 
 
 # =========================================================
@@ -67,6 +77,8 @@ PASSWORD = os.getenv("VAULT_PASSWORD")
 CLOUDINARY_FOLDER = "private-vault"
 
 ACTIVITY_LOG_PUBLIC_ID = "private-vault-meta/activity_log"
+
+CHAT_LOG_PUBLIC_ID = "private-vault-meta/chat_log"
 
 
 # =========================================================
@@ -80,17 +92,21 @@ ACTIVE_SESSIONS = {}
 
 
 # =========================================================
-# ACTIVITY LOG HELPERS (STORED IN CLOUDINARY AS JSON)
+# GENERIC CLOUDINARY JSON STORE HELPERS
+# =========================================================
+# Used for both the activity log and the chat log - each
+# is just a JSON file living in Cloudinary, so both survive
+# Render restarts permanently, same as your photos.
 # =========================================================
 
-def load_activity_log():
+def load_json_store(public_id):
 
     try:
 
         import time
 
         url = cloudinary.utils.cloudinary_url(
-            ACTIVITY_LOG_PUBLIC_ID,
+            public_id,
             resource_type="raw"
         )[0]
 
@@ -107,15 +123,12 @@ def load_activity_log():
 
     except Exception as e:
 
-        print("Activity log load error (probably doesn't exist yet):", e)
+        print(f"JSON store load error for {public_id} (probably doesn't exist yet):", e)
 
         return []
 
 
-def save_activity_log(entries):
-
-    # Keep only the most recent 100 entries
-    entries = entries[-100:]
+def save_json_store(public_id, entries):
 
     try:
 
@@ -125,7 +138,7 @@ def save_activity_log(entries):
 
         cloudinary.uploader.upload(
             io.BytesIO(json_bytes),
-            public_id=ACTIVITY_LOG_PUBLIC_ID,
+            public_id=public_id,
             resource_type="raw",
             overwrite=True,
             invalidate=True
@@ -133,7 +146,23 @@ def save_activity_log(entries):
 
     except Exception as e:
 
-        print("Activity log save error:", e)
+        print(f"JSON store save error for {public_id}:", e)
+
+
+# =========================================================
+# ACTIVITY LOG HELPERS
+# =========================================================
+
+def load_activity_log():
+    return load_json_store(ACTIVITY_LOG_PUBLIC_ID)
+
+
+def save_activity_log(entries):
+
+    # Keep only the most recent 100 entries
+    entries = entries[-100:]
+
+    save_json_store(ACTIVITY_LOG_PUBLIC_ID, entries)
 
 
 def add_activity(action, filename, actor, action_type, device=None):
@@ -152,6 +181,38 @@ def add_activity(action, filename, actor, action_type, device=None):
     save_activity_log(entries)
 
 
+# =========================================================
+# CHAT LOG HELPERS
+# =========================================================
+# Kept permanently - no trimming - per your request.
+# Worth knowing: Cloudinary's free plan has file size
+# limits, so an extremely long chat history (thousands of
+# messages) could eventually need trimming. Not a concern
+# for normal day-to-day use.
+# =========================================================
+
+def load_chat_log():
+    return load_json_store(CHAT_LOG_PUBLIC_ID)
+
+
+def save_chat_log(messages):
+    save_json_store(CHAT_LOG_PUBLIC_ID, messages)
+
+
+def add_message(sender, text):
+
+    messages = load_chat_log()
+
+    messages.append({
+        "id": secrets.token_hex(6),
+        "sender": sender,
+        "text": text,
+        "timestamp": datetime.now().strftime("%d %b, %I:%M %p")
+    })
+
+    save_chat_log(messages)
+
+    return messages
 # =========================================================
 # DEVICE LABEL FROM USER-AGENT
 # =========================================================
@@ -224,11 +285,13 @@ def login():
 @app.route("/login", methods=["POST"])
 def login_check():
 
-    username = request.form.get("username", "").strip()
+    username = request.form.get("username", "").strip().lower()
     password = request.form.get("password", "")
     display_name = request.form.get("display_name", "").strip()
 
-    if username == USERNAME and password == PASSWORD:
+    if username in USERS and password == PASSWORD:
+
+        identity_name = USERS[username]
 
         session.clear()
 
@@ -237,7 +300,13 @@ def login_check():
         # Store current session generation
         session["session_generation"] = SESSION_GENERATION
 
-        session["display_name"] = display_name if display_name else "Someone"
+        # Reliable identity, based on which username logged in.
+        # Powers the Welcome banner and chat sender name.
+        session["identity_name"] = identity_name
+
+        # Free-text label, kept separately for the activity log
+        # (defaults to identity_name if left blank).
+        session["display_name"] = display_name if display_name else identity_name
 
         # Track this session as an active device.
         # Keyed by device type + IP, so re-logging in from the
@@ -299,7 +368,8 @@ def home():
     return render_template(
         "index.html",
         photos=photos,
-        display_name=session.get("display_name", "")
+        display_name=session.get("display_name", ""),
+        identity_name=session.get("identity_name", "")
     )
 
 
@@ -441,7 +511,8 @@ def security():
         "security.html",
         active_session_count=len(ACTIVE_SESSIONS),
         last_login=last_login,
-        display_name=session.get("display_name", "")
+        display_name=session.get("display_name", ""),
+        identity_name=session.get("identity_name", "")
     )
 
 
@@ -462,7 +533,8 @@ def activity_page():
     return render_template(
         "activity.html",
         entries=entries,
-        display_name=session.get("display_name", "")
+        display_name=session.get("display_name", ""),
+        identity_name=session.get("identity_name", "")
     )
 
 
@@ -512,10 +584,105 @@ def storage_page():
         storage_mb=storage_mb,
         storage_limit_mb=storage_limit_mb,
         percent_used=percent_used,
-        display_name=session.get("display_name", "")
+        display_name=session.get("display_name", ""),
+        identity_name=session.get("identity_name", "")
     )
 
 
+# =========================================================
+# CHAT PAGE
+# =========================================================
+
+@app.route("/chat")
+def chat_page():
+
+    if not session.get("logged_in"):
+        return redirect("/")
+
+    messages = load_chat_log()
+
+    return render_template(
+        "chat.html",
+        messages=messages,
+        display_name=session.get("display_name", ""),
+        identity_name=session.get("identity_name", "")
+    )
+
+
+# =========================================================
+# CHAT - GET MESSAGES (POLLED BY FRONTEND)
+# =========================================================
+
+@app.route("/api/messages")
+def get_messages():
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    messages = load_chat_log()
+
+    return jsonify({"messages": messages})
+
+
+# =========================================================
+# CHAT - SEND MESSAGE
+# =========================================================
+
+@app.route("/api/send-message", methods=["POST"])
+def send_message():
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    data = request.get_json(silent=True) or {}
+
+    text = (data.get("text") or "").strip()
+
+    if not text:
+        return jsonify({"error": "Empty message"}), 400
+
+    sender = session.get("identity_name", "Someone")
+
+    messages = add_message(sender, text)
+
+    return jsonify({"messages": messages})
+
+# =========================================================
+# CHAT - DELETE ONE MESSAGE
+# =========================================================
+
+@app.route("/api/delete-message", methods=["POST"])
+def delete_message():
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    data = request.get_json(silent=True) or {}
+
+    msg_id = data.get("id")
+
+    messages = load_chat_log()
+
+    messages = [m for m in messages if m.get("id") != msg_id]
+
+    save_chat_log(messages)
+
+    return jsonify({"messages": messages})
+
+
+# =========================================================
+# CHAT - CLEAR ALL MESSAGES
+# =========================================================
+
+@app.route("/api/clear-chat", methods=["POST"])
+def clear_chat():
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    save_chat_log([])
+
+    return jsonify({"messages": []})
 # =========================================================
 # LOGOUT CURRENT DEVICE
 # =========================================================

@@ -29,6 +29,7 @@
             <a href="/security">Security</a>
             <a href="/activity" class="active">Activity</a>
             <a href="/storage">Storage</a>
+            <a href="/chat">Chat</a>
 
         </nav>
 
@@ -62,6 +63,15 @@
     </header>
 
 
+    <!-- =========================
+         WELCOME BANNER
+    ========================= -->
+
+    <div class="welcome-banner">
+        Welcome, <strong>{{ identity_name }}</strong> 👋
+    </div>
+
+
     <main class="page-container">
 
         <h1>🕒 Recent Activity</h1>
@@ -79,16 +89,16 @@
 
             <div class="activity-item">
 
-                <span class="activity-dot {{ entry.action.split(' ')[0] if entry.action == 'logged in' else entry.action }}"></span>
+                <span class="activity-dot {{ entry.action_type }}"></span>
 
                 <div>
 
                     <div class="activity-text">
-    <strong>{{ entry.actor }}</strong>
-    {{ entry.action }}
-    {% if entry.filename %}"{{ entry.filename }}"{% endif %}
-    {% if entry.device %}from {{ entry.device }}{% endif %}
-</div>
+                        <strong>{{ entry.actor }}</strong>
+                        {{ entry.action }}
+                        {% if entry.filename %}"{{ entry.filename }}"{% endif %}
+                        {% if entry.device %}from {{ entry.device }}{% endif %}
+                    </div>
 
                     <div class="activity-time">
                         {{ entry.timestamp }}
