@@ -8,77 +8,60 @@
     <meta name="viewport"
           content="width=device-width, initial-scale=1.0">
 
-    <title>Private Gallery</title>
+    <title>Private Vault</title>
 
     <link rel="stylesheet"
           href="{{ url_for('static', filename='style.css') }}">
 
 </head>
 
-<body>
+<body class="vault-page">
 
     <!-- =========================
-         NAVBAR
+         MINIMAL HEADER
     ========================= -->
 
-    <header class="navbar">
+    <header class="vault-header">
 
-        <div class="logo">
-            🔐 Private Vault For Ayushman
-        </div>
+        <div class="vault-header-inner">
 
-        <!-- PAGE TABS -->
+            <div class="vault-logo">PRIVATE / VAULT</div>
 
-   <nav class="page-nav">
+            <nav class="vault-filters">
+                <button class="filter-tab active" data-filter="all" onclick="setGalleryFilter('all', this)">All</button>
+                <button class="filter-tab" data-filter="recent" onclick="setGalleryFilter('recent', this)">Recent</button>
+                <button class="filter-tab" data-filter="favorites" onclick="setGalleryFilter('favorites', this)">Favorites</button>
+            </nav>
 
-    <a href="/home">Gallery</a>
-    <a href="/chat">Chat</a>
-    <a href="/security">Security</a>
-    <a href="/activity">Activity</a>
-    <a href="/storage">Storage</a>
+            <div class="vault-header-right">
 
-</nav>
-
-        <div class="navbar-right">
-
-            <!-- THEME -->
-
-            <button
-                class="theme-toggle"
-                onclick="toggleTheme()"
-                id="themeToggleBtn"
-                type="button"
-            >
-                🖥️ Terminal Mode
-            </button>
-
-
-            <!-- LOGOUT ALL DEVICES -->
-
-            <form
-                action="/logout-all"
-                method="POST"
-                onsubmit="return confirm('Logout from all devices?');"
-            >
+                <nav class="vault-subnav">
+                    <a href="/chat">Chat</a>
+                    <a href="/security">Security</a>
+                    <a href="/activity">Activity</a>
+                    <a href="/storage">Storage</a>
+                </nav>
 
                 <button
-                    type="submit"
-                    class="logout-all"
+                    class="vault-theme-toggle"
+                    onclick="toggleTheme()"
+                    id="themeToggleBtn"
+                    type="button"
                 >
-                    Logout All Devices
+                    Terminal
                 </button>
 
-            </form>
+                <button
+                    class="vault-add-button"
+                    type="button"
+                    onclick="document.getElementById('hiddenUploadInput').click()"
+                >
+                    + Add Photo
+                </button>
 
+                <a href="/logout" class="vault-logout">Logout</a>
 
-            <!-- CURRENT DEVICE LOGOUT -->
-            <a
-            
-                href="/logout"
-                class="logout"
-            >
-                Logout
-            </a>
+            </div>
 
         </div>
 
@@ -86,184 +69,109 @@
 
 
     <!-- =========================
-         WELCOME BANNER
+         HIDDEN UPLOAD FORM
+         Uses the existing /upload route -
+         nothing here changes backend behavior.
     ========================= -->
 
-    <div class="welcome-banner">
-        Welcome, <strong>{{ identity_name }}</strong> 👋
-    </div>
+    <form
+        id="uploadForm"
+        action="/upload"
+        method="POST"
+        enctype="multipart/form-data"
+        style="display:none;"
+    >
+
+        <input
+            type="file"
+            id="hiddenUploadInput"
+            name="photo"
+            accept="image/*"
+            onchange="document.getElementById('uploadForm').submit();"
+        >
+
+    </form>
 
 
     <!-- =========================
-         MAIN
+         GALLERY
     ========================= -->
 
-    <main class="gallery-container">
+    <main class="vault-gallery-wrap">
 
-        <!-- =========================
-             HEADER
-        ========================= -->
+        {% if photos %}
 
-        <div class="gallery-header">
-
-            <div>
-
-                <h1>
-                    My Private Gallery
-                </h1>
-
-                <p>
-                    Your shared private photo collection.
-                </p>
-
-            </div>
-
-
-            <!-- =========================
-                 ADD PHOTO
-            ========================= -->
-
-            <form
-                action="/upload"
-                method="POST"
-                enctype="multipart/form-data"
-                class="upload-form"
-            >
-
-                <input
-                    type="file"
-                    id="photo"
-                    name="photo"
-                    accept="image/*"
-                    required
-                >
-
-                <button
-                    type="submit"
-                    class="upload-button"
-                >
-                    Upload Photo
-                </button>
-
-            </form>
-
-        </div>
-
-
-        <!-- =========================
-             GALLERY
-        ========================= -->
-
-        <div class="gallery">
+        <div class="vault-gallery" id="vaultGallery">
 
             {% for photo in photos %}
 
-            <div class="photo-card">
+            <div class="vault-item" data-index="{{ loop.index0 }}">
 
-                <!-- PHOTO -->
+                <div class="vault-item-inner" onclick="openViewer({{ loop.index0 }})">
 
-                <img
-                    src="{{ photo.url }}"
-                    alt="Private Picture"
-                    class="gallery-image"
-                    onclick="openImage(this)"
-                >
+                    <img
+                        src="{{ photo.url }}"
+                        alt="{{ photo.filename }}"
+                        loading="lazy"
+                    >
 
+                    <div class="vault-overlay">
+                        <span class="vault-filename">{{ photo.filename }}</span>
+                        <span class="vault-view">View</span>
+                    </div>
 
-                <!-- PHOTO INFO -->
+                </div>
 
-                <div class="photo-info">
+                <div class="vault-menu">
 
-                    <span title="{{ photo.filename }}">
-                        {{ photo.filename }}
-                    </span>
+                    <button
+                        type="button"
+                        class="vault-menu-btn"
+                        onclick="event.stopPropagation(); toggleVaultMenu(this)"
+                    >
+                        ⋯
+                    </button>
 
+                    <div class="vault-menu-dropdown" onclick="event.stopPropagation()">
 
-                    <!-- THREE DOT MENU -->
-
-                    <div class="photo-menu">
-
-                        <button
-                            type="button"
-                            class="menu-button"
-                            onclick="toggleMenu(this)"
+                        <form
+                            action="/rename"
+                            method="POST"
+                            class="vault-rename-form"
                         >
-                            ⋮
-                        </button>
 
-
-                        <div class="menu-dropdown">
-
-
-                            <!-- =====================
-                                 DOWNLOAD
-                            ====================== -->
-
-                            <a
-                                href="{{ photo.url.replace('/upload/', '/upload/fl_attachment/') }}"
-                                class="download-link"
-                            >
-                                Download
-                            </a>
-
-
-                            <!-- =====================
-                                 RENAME
-                            ====================== -->
-
-                            <form
-                                action="/rename"
-                                method="POST"
-                                class="rename-form"
+                            <input
+                                type="hidden"
+                                name="old_public_id"
+                                value="{{ photo.public_id }}"
                             >
 
-                                <input
-                                    type="hidden"
-                                    name="old_public_id"
-                                    value="{{ photo.public_id }}"
-                                >
-
-                                <input
-                                    type="text"
-                                    name="new_name"
-                                    placeholder="New name"
-                                    required
-                                >
-
-                                <button
-                                    type="submit"
-                                >
-                                    Rename
-                                </button>
-
-                            </form>
-
-
-                            <!-- =====================
-                                 DELETE
-                            ====================== -->
-
-                            <form
-                                action="/delete"
-                                method="POST"
-                                onsubmit="return confirm('Delete this photo?');"
+                            <input
+                                type="text"
+                                name="new_name"
+                                placeholder="New name"
+                                required
                             >
 
-                                <input
-                                    type="hidden"
-                                    name="public_id"
-                                    value="{{ photo.public_id }}"
-                                >
+                            <button type="submit">Rename</button>
 
-                                <button
-                                    type="submit"
-                                >
-                                    Delete
-                                </button>
+                        </form>
 
-                            </form>
+                        <form
+                            action="/delete"
+                            method="POST"
+                            onsubmit="return confirm('Delete this photo?');"
+                        >
 
-                        </div>
+                            <input
+                                type="hidden"
+                                name="public_id"
+                                value="{{ photo.public_id }}"
+                            >
+
+                            <button type="submit">Delete</button>
+
+                        </form>
 
                     </div>
 
@@ -275,34 +183,46 @@
 
         </div>
 
+        {% else %}
+
+        <div class="vault-empty">
+            No photographs yet.
+        </div>
+
+        {% endif %}
+
     </main>
 
 
     <!-- =========================
-         FULL SCREEN IMAGE
+         FULL SCREEN VIEWER
     ========================= -->
 
-    <div
-        id="imageModal"
-        class="image-modal"
-        onclick="closeImage()"
-    >
+    <div class="vault-viewer" id="vaultViewer">
 
-        <span class="close-image">
-            &times;
-        </span>
+        <button class="viewer-close" onclick="closeViewer()">&times;</button>
 
-        <img
-            id="bigImage"
-            class="big-image"
-        >
+        <button class="viewer-nav viewer-prev" onclick="viewerNav(-1)">&#8249;</button>
+
+        <img class="viewer-image" id="viewerImage" src="" alt="">
+
+        <button class="viewer-nav viewer-next" onclick="viewerNav(1)">&#8250;</button>
+
+        <div class="viewer-caption">
+            <span class="viewer-filename" id="viewerFilename"></span>
+            <span class="viewer-counter" id="viewerCounter"></span>
+        </div>
 
     </div>
 
 
     <!-- =========================
-         JAVASCRIPT
+         PHOTO DATA FOR VIEWER/JS
     ========================= -->
+
+    <script>
+        const VAULT_PHOTOS = {{ photos | tojson }};
+    </script>
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 

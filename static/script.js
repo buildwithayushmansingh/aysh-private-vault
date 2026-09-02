@@ -363,3 +363,192 @@ if (chatWindow && chatForm && chatInput) {
     window.clearChat = clearChat;
 
 }
+
+// =========================================================
+// PRIVATE VAULT — EDITORIAL GALLERY
+// =========================================================
+
+// Also confirm logout on the new vault-page logout link,
+// since it uses a different class name than other pages.
+const vaultLogoutButton = document.querySelector(".vault-logout");
+
+if (vaultLogoutButton) {
+    vaultLogoutButton.addEventListener("click", function (event) {
+
+        const confirmLogout = confirm("Are you sure you want to logout?");
+
+        if (!confirmLogout) {
+            event.preventDefault();
+        }
+
+    });
+}
+
+
+// =========================
+// THREE DOT MENU (VAULT GALLERY)
+// =========================
+
+function toggleVaultMenu(button) {
+
+    const menu = button.nextElementSibling;
+
+    document.querySelectorAll(".vault-menu-dropdown").forEach(function (item) {
+        if (item !== menu) {
+            item.classList.remove("show");
+        }
+    });
+
+    menu.classList.toggle("show");
+}
+
+document.addEventListener("click", function (event) {
+
+    if (!event.target.closest(".vault-menu")) {
+
+        document.querySelectorAll(".vault-menu-dropdown").forEach(function (menu) {
+            menu.classList.remove("show");
+        });
+
+    }
+
+});
+
+
+// =========================
+// GALLERY FILTER TABS
+// =========================
+// "Recent" shows the last 12 items in whatever order the
+// backend returned them. "Favorites" has no backend data
+// yet, so it shows an empty state for now.
+// =========================
+
+function setGalleryFilter(filter, tabButton) {
+
+    document.querySelectorAll(".filter-tab").forEach(function (tab) {
+        tab.classList.remove("active");
+    });
+
+    tabButton.classList.add("active");
+
+    const items = document.querySelectorAll(".vault-item");
+    const total = items.length;
+
+    items.forEach(function (item, i) {
+
+        const index = parseInt(item.dataset.index, 10);
+
+        if (filter === "all") {
+            item.style.display = "";
+        } else if (filter === "recent") {
+            item.style.display = (total - index) <= 12 ? "" : "none";
+        } else if (filter === "favorites") {
+            item.style.display = "none";
+        }
+
+    });
+
+    const gallery = document.getElementById("vaultGallery");
+
+    if (gallery && filter === "favorites") {
+
+        if (!document.getElementById("favEmptyMsg")) {
+
+            const msg = document.createElement("div");
+            msg.id = "favEmptyMsg";
+            msg.className = "vault-empty";
+            msg.textContent = "No favorites yet.";
+            gallery.parentElement.appendChild(msg);
+        }
+
+    } else {
+
+        const existingMsg = document.getElementById("favEmptyMsg");
+
+        if (existingMsg) existingMsg.remove();
+
+    }
+}
+
+
+// =========================
+// FULL SCREEN VIEWER
+// =========================
+
+let currentViewerIndex = 0;
+
+function openViewer(index) {
+
+    if (typeof VAULT_PHOTOS === "undefined" || !VAULT_PHOTOS.length) return;
+
+    currentViewerIndex = index;
+
+    updateViewerImage();
+
+    document.getElementById("vaultViewer").classList.add("show");
+
+    document.body.style.overflow = "hidden";
+}
+
+function closeViewer() {
+
+    document.getElementById("vaultViewer").classList.remove("show");
+
+    document.body.style.overflow = "";
+}
+
+function viewerNav(direction) {
+
+    const total = VAULT_PHOTOS.length;
+
+    currentViewerIndex = (currentViewerIndex + direction + total) % total;
+
+    updateViewerImage();
+}
+
+function updateViewerImage() {
+
+    const photo = VAULT_PHOTOS[currentViewerIndex];
+
+    if (!photo) return;
+
+    document.getElementById("viewerImage").src = photo.url;
+    document.getElementById("viewerFilename").textContent = photo.filename;
+
+    const counter = String(currentViewerIndex + 1).padStart(2, "0") +
+        " / " +
+        String(VAULT_PHOTOS.length).padStart(2, "0");
+
+    document.getElementById("viewerCounter").textContent = counter;
+}
+
+// Close viewer when clicking the dark background (not the image itself)
+const vaultViewerEl = document.getElementById("vaultViewer");
+
+if (vaultViewerEl) {
+
+    vaultViewerEl.addEventListener("click", function (event) {
+
+        if (event.target === vaultViewerEl) {
+            closeViewer();
+        }
+
+    });
+}
+
+// Keyboard controls: ESC to close, arrows to navigate
+document.addEventListener("keydown", function (event) {
+
+    const viewer = document.getElementById("vaultViewer");
+
+    if (!viewer || !viewer.classList.contains("show")) return;
+
+    if (event.key === "Escape") {
+        closeViewer();
+    } else if (event.key === "ArrowLeft") {
+        viewerNav(-1);
+    } else if (event.key === "ArrowRight") {
+        viewerNav(1);
+    }
+
+});
