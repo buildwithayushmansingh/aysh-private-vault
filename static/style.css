@@ -1396,8 +1396,13 @@ body {
 }
 
 @keyframes vaultFadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 
@@ -1603,19 +1608,40 @@ body {
         opacity: 0;
         transform: translateY(16px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
     }
 }
 
-.vault-item:nth-child(1) { animation-delay: 0.02s; }
-.vault-item:nth-child(2) { animation-delay: 0.06s; }
-.vault-item:nth-child(3) { animation-delay: 0.10s; }
-.vault-item:nth-child(4) { animation-delay: 0.14s; }
-.vault-item:nth-child(5) { animation-delay: 0.18s; }
-.vault-item:nth-child(6) { animation-delay: 0.22s; }
-.vault-item:nth-child(n+7) { animation-delay: 0.26s; }
+.vault-item:nth-child(1) {
+    animation-delay: 0.02s;
+}
+
+.vault-item:nth-child(2) {
+    animation-delay: 0.06s;
+}
+
+.vault-item:nth-child(3) {
+    animation-delay: 0.10s;
+}
+
+.vault-item:nth-child(4) {
+    animation-delay: 0.14s;
+}
+
+.vault-item:nth-child(5) {
+    animation-delay: 0.18s;
+}
+
+.vault-item:nth-child(6) {
+    animation-delay: 0.22s;
+}
+
+.vault-item:nth-child(n+7) {
+    animation-delay: 0.26s;
+}
 
 .vault-item-inner {
     position: relative;
@@ -1667,7 +1693,7 @@ body {
 
     opacity: 0;
 
-    background: linear-gradient(to top, rgba(0,0,0,0.6), transparent 50%);
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.6), transparent 50%);
 
     transition: opacity 0.4s ease;
 
@@ -1752,7 +1778,7 @@ body {
     border: 1px solid var(--border-color-strong);
     border-radius: 8px;
 
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 20px var(--accent-glow);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px var(--accent-glow);
 
     display: none;
     z-index: 300;
@@ -1957,19 +1983,44 @@ body {
 @media (max-width: 800px) {
 
     .vault-header-inner {
-        flex-wrap: wrap;
+        flex-direction: column;
+        align-items: flex-start;
         padding: 14px 20px;
-        row-gap: 12px;
+        gap: 12px;
+    }
+
+    .vault-logo {
+        font-size: 12px;
+    }
+
+    .vault-header-right {
+        width: 100%;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .vault-theme-toggle,
+    .vault-add-button,
+    .vault-logout {
+        font-size: 10px;
+        padding: 6px 12px;
     }
 
     .vault-subnav {
-        display: none;
+        width: 100%;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        padding-top: 6px;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .vault-subnav a {
+        font-size: 11px;
     }
 
     .vault-filters {
-        order: 3;
         width: 100%;
-        justify-content: flex-start;
         gap: 18px;
     }
 
