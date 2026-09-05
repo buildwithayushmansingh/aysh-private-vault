@@ -18,50 +18,77 @@
 <body class="vault-page">
 
     <!-- =========================
-         MINIMAL HEADER
+         FLOATING DOCK HEADER (DESKTOP)
     ========================= -->
 
-    <header class="vault-header">
+    <header class="vault-dock">
 
-        <div class="vault-header-inner">
+        <div class="vault-dock-inner">
 
-            <div class="vault-logo">PRIVATE / VAULT</div>
+            <div class="vault-logo">
+                <span class="vault-logo-dot"></span>
+                VAULT
+            </div>
 
-            <nav class="vault-filters">
-                <button class="filter-tab active" data-filter="all" onclick="setGalleryFilter('all', this)">All</button>
-                <button class="filter-tab" data-filter="recent" onclick="setGalleryFilter('recent', this)">Recent</button>
-                <button class="filter-tab" data-filter="favorites" onclick="setGalleryFilter('favorites', this)">Favorites</button>
+            <nav class="vault-dock-nav" id="dockNav">
+
+                <span class="dock-pill" id="dockPill"></span>
+
+                <a href="/home" class="dock-item active" data-nav>
+                    <span class="dock-icon">🖼</span> Gallery
+                </a>
+
+                <a href="/chat" class="dock-item" data-nav>
+                    <span class="dock-icon">💬</span> Chat
+                </a>
+
+                <a href="/security" class="dock-item" data-nav>
+                    <span class="dock-icon">🛡</span> Security
+                </a>
+
+                <a href="/activity" class="dock-item" data-nav>
+                    <span class="dock-icon">🕒</span> Activity
+                </a>
+
+                <a href="/storage" class="dock-item" data-nav>
+                    <span class="dock-icon">📊</span> Storage
+                </a>
+
             </nav>
 
-            <div class="vault-header-right">
-
-                <nav class="vault-subnav">
-                    <a href="/chat">Chat</a>
-                    <a href="/security">Security</a>
-                    <a href="/activity">Activity</a>
-                    <a href="/storage">Storage</a>
-                </nav>
+            <div class="vault-dock-actions">
 
                 <button
-                    class="vault-theme-toggle"
+                    class="dock-icon-btn"
                     onclick="toggleTheme()"
                     id="themeToggleBtn"
                     type="button"
+                    title="Toggle theme"
                 >
-                    Terminal
+                    🖥
                 </button>
 
                 <button
-                    class="vault-add-button"
+                    class="dock-fab"
                     type="button"
                     onclick="document.getElementById('hiddenUploadInput').click()"
+                    title="Add photo"
                 >
-                    + Add Photo
+                    +
                 </button>
 
-                <a href="/logout" class="vault-logout">Logout</a>
+                <a href="/logout" class="dock-icon-btn" title="Logout">⏻</a>
 
             </div>
+
+        </div>
+
+
+        <div class="vault-filter-row">
+
+            <button class="filter-tab active" data-filter="all" onclick="setGalleryFilter('all', this)">All</button>
+            <button class="filter-tab" data-filter="recent" onclick="setGalleryFilter('recent', this)">Recent</button>
+            <button class="filter-tab" data-filter="favorites" onclick="setGalleryFilter('favorites', this)">Favorites</button>
 
         </div>
 
@@ -70,8 +97,6 @@
 
     <!-- =========================
          HIDDEN UPLOAD FORM
-         Uses the existing /upload route -
-         nothing here changes backend behavior.
     ========================= -->
 
     <form
@@ -214,6 +239,40 @@
         </div>
 
     </div>
+
+
+    <!-- =========================
+         FLOATING DOCK (MOBILE)
+         Raised center FAB, floating pill shape.
+    ========================= -->
+
+    <nav class="vault-mobile-dock">
+
+        <a href="/chat" class="mdock-item">
+            <span class="mdock-icon">💬</span>
+        </a>
+
+        <a href="/security" class="mdock-item">
+            <span class="mdock-icon">🛡</span>
+        </a>
+
+        <button
+            class="mdock-fab"
+            type="button"
+            onclick="document.getElementById('hiddenUploadInput').click()"
+        >
+            +
+        </button>
+
+        <a href="/activity" class="mdock-item">
+            <span class="mdock-icon">🕒</span>
+        </a>
+
+        <a href="/storage" class="mdock-item">
+            <span class="mdock-icon">📊</span>
+        </a>
+
+    </nav>
 
 
     <!-- =========================

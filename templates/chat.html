@@ -15,48 +15,62 @@
 
 </head>
 
-<body>
+<body class="vault-page">
 
-    <header class="navbar">
+    <!-- =========================
+         FLOATING DOCK HEADER (DESKTOP)
+    ========================= -->
 
-        <div class="logo">
-            🔐 Private Vault
-        </div>
+    <header class="vault-dock">
 
-        <nav class="page-nav">
+        <div class="vault-dock-inner">
 
-            <a href="/home">Gallery</a>
-            <a href="/security">Security</a>
-            <a href="/activity">Activity</a>
-            <a href="/storage">Storage</a>
-            <a href="/chat" class="active">Chat</a>
+            <div class="vault-logo">
+                <span class="vault-logo-dot"></span>
+                VAULT
+            </div>
 
-        </nav>
+            <nav class="vault-dock-nav" id="dockNav">
 
-        <div class="navbar-right">
+                <span class="dock-pill" id="dockPill"></span>
 
-            <button
-                class="theme-toggle"
-                onclick="toggleTheme()"
-                id="themeToggleBtn"
-                type="button"
-            >
-                🖥️ Terminal Mode
-            </button>
+                <a href="/home" class="dock-item" data-nav>
+                    <span class="dock-icon">🖼</span> Gallery
+                </a>
 
-            <form
-                action="/logout-all"
-                method="POST"
-                onsubmit="return confirm('Logout from all devices?');"
-            >
-                <button type="submit" class="logout-all">
-                    Logout All Devices
+                <a href="/chat" class="dock-item active" data-nav>
+                    <span class="dock-icon">💬</span> Chat
+                </a>
+
+                <a href="/security" class="dock-item" data-nav>
+                    <span class="dock-icon">🛡</span> Security
+                </a>
+
+                <a href="/activity" class="dock-item" data-nav>
+                    <span class="dock-icon">🕒</span> Activity
+                </a>
+
+                <a href="/storage" class="dock-item" data-nav>
+                    <span class="dock-icon">📊</span> Storage
+                </a>
+
+            </nav>
+
+            <div class="vault-dock-actions">
+
+                <button
+                    class="dock-icon-btn"
+                    onclick="toggleTheme()"
+                    id="themeToggleBtn"
+                    type="button"
+                    title="Toggle theme"
+                >
+                    🖥
                 </button>
-            </form>
 
-            <a href="/logout" class="logout">
-                Logout
-            </a>
+                <a href="/logout" class="dock-icon-btn" title="Logout">⏻</a>
+
+            </div>
 
         </div>
 
@@ -64,102 +78,267 @@
 
 
     <!-- =========================
-         WELCOME BANNER
+         CHAT LAYOUT
     ========================= -->
 
-    <div class="welcome-banner">
-        Welcome, <strong>{{ identity_name }}</strong> 👋
-    </div>
+    <main class="chat-page">
+
+        <div class="chat-shell">
+
+            <!-- =========================
+                 LEFT PANEL
+            ========================= -->
+
+            <div class="chat-panel-left">
+
+                <div>
+                    <div class="chat-welcome-title">Welcome,</div>
+                    <div class="chat-welcome-name">{{ identity_name }} 👋</div>
+                    <div class="chat-welcome-sub">Glad to have you back!</div>
+                </div>
+
+                <div class="chat-storage-mini">
+
+                    <div class="chat-storage-label">
+                        <span>Shared Files</span>
+                        <span>{{ shared_files|length }}</span>
+                    </div>
+
+                    <div class="chat-storage-bar">
+                        <div class="chat-storage-bar-inner" style="width: {{ [shared_files|length * 5, 100]|min }}%;"></div>
+                    </div>
+
+                </div>
+
+            </div>
 
 
-    <main class="page-container chat-page">
+            <!-- =========================
+                 CENTER PANEL — CHAT
+            ========================= -->
 
-        <div class="chat-header-row">
+            <div class="chat-panel-center">
 
-    <div>
-        <h1>💬 Chat</h1>
-        <p class="page-subtitle">
-            A private space just between the two of you.
-        </p>
-    </div>
+                <div class="chat-thread-header">
 
-    <button
-        type="button"
-        class="clear-chat-button"
-        onclick="clearChat()"
-    >
-        Clear Chat
-    </button>
+                    <div>
+                        <div class="chat-thread-title">Private Chat</div>
+                        <div class="chat-thread-sub">A space just between the two of you</div>
+                    </div>
 
-</div>
+                    <button
+                        type="button"
+                        class="chat-clear-btn"
+                        onclick="clearChat()"
+                        title="Clear chat"
+                    >
+                        🗑
+                    </button>
+
+                </div>
+
+                <div class="chat-window" id="chatWindow">
+
+                    {% if messages %}
+
+                        {% for msg in messages %}
+
+                        <div class="chat-bubble-row {{ 'mine' if msg.sender == identity_name else 'theirs' }}">
+
+                            <div class="chat-avatar">{{ msg.sender[0]|upper }}</div>
+
+                            <div class="chat-bubble">
+
+                                <div class="chat-bubble-sender">
+                                    {{ msg.sender }}
+                                </div>
+
+                                {% if msg.attachment %}
+
+                                    {% if msg.attachment.type == 'image' %}
+                                    <img
+                                        src="{{ msg.attachment.url }}"
+                                        class="chat-attachment-image"
+                                        alt="{{ msg.attachment.filename }}"
+                                        onclick="window.open('{{ msg.attachment.url }}', '_blank')"
+                                    >
+                                    {% else %}
+                                    <a href="{{ msg.attachment.url }}" target="_blank" class="chat-attachment-file">
+                                        <span class="chat-attachment-file-icon">📄</span>
+                                        <span class="chat-attachment-file-name">{{ msg.attachment.filename }}</span>
+                                    </a>
+                                    {% endif %}
+
+                                {% endif %}
+
+                                {% if msg.text %}
+                                <div class="chat-bubble-text">
+                                    {{ msg.text }}
+                                </div>
+                                {% endif %}
+
+                                <div class="chat-bubble-time">
+                                    {{ msg.timestamp }}
+                                </div>
+
+                                {% if msg.sender == identity_name %}
+                                <button
+                                    type="button"
+                                    class="chat-delete-button"
+                                    onclick="deleteMessage('{{ msg.id }}')"
+                                >
+                                    🗑
+                                </button>
+                                {% endif %}
+
+                            </div>
+
+                        </div>
+
+                        {% endfor %}
+
+                    {% else %}
+
+                        <div class="chat-empty">
+                            No messages yet. Say hi 👋
+                        </div>
+
+                    {% endif %}
+
+                    <button class="chat-scroll-btn" id="scrollToBottomBtn" onclick="scrollChatToBottom(true)" type="button">
+                        ↓
+                    </button>
+
+                </div>
+
+                <form id="chatForm" class="chat-input-form">
+
+                    <button
+                        type="button"
+                        class="chat-attach-btn"
+                        onclick="document.getElementById('chatFileInput').click()"
+                        title="Attach file"
+                    >
+                        📎
+                    </button>
+
+                    <button
+                        type="button"
+                        class="chat-camera-btn"
+                        onclick="document.getElementById('chatCameraInput').click()"
+                        title="Send photo"
+                    >
+                        📷
+                    </button>
+
+                    <input
+                        type="file"
+                        id="chatFileInput"
+                        style="display:none;"
+                        onchange="uploadChatFile(this.files[0])"
+                    >
+
+                    <input
+                        type="file"
+                        id="chatCameraInput"
+                        accept="image/*"
+                        capture="environment"
+                        style="display:none;"
+                        onchange="uploadChatFile(this.files[0])"
+                    >
+
+                    <input
+                        type="text"
+                        id="chatInput"
+                        placeholder="Type a message..."
+                        autocomplete="off"
+                        required
+                    >
+
+                    <button type="submit" class="chat-send-button">
+                        ➤
+                    </button>
+
+                </form>
+
+            </div>
 
 
-        <div class="chat-window" id="chatWindow">
+            <!-- =========================
+                 RIGHT PANEL — SHARED FILES
+            ========================= -->
 
-            {% if messages %}
+            <div class="chat-panel-right">
 
-                {% for msg in messages %}
+                <div class="chat-panel-right-title">Media & Files</div>
 
-                <div class="chat-bubble-row {{ 'mine' if msg.sender == identity_name else 'theirs' }}">
+                <div class="shared-files-list" id="sharedFilesList">
 
-    <div class="chat-bubble">
+                    {% if shared_files %}
 
-        <div class="chat-bubble-sender">
-            {{ msg.sender }}
+                        {% for file in shared_files %}
+
+                        <a href="{{ file.url }}" target="_blank" class="shared-file-item">
+
+                            {% if file.type == 'image' %}
+                            <img src="{{ file.url }}" class="shared-file-thumb" alt="">
+                            {% else %}
+                            <span class="shared-file-icon">📄</span>
+                            {% endif %}
+
+                            <span class="shared-file-name">{{ file.filename }}</span>
+
+                        </a>
+
+                        {% endfor %}
+
+                    {% else %}
+
+                        <div class="shared-files-empty">No files shared yet.</div>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
         </div>
 
-        <div class="chat-bubble-text">
-            {{ msg.text }}
-        </div>
+    </main>
 
-        <div class="chat-bubble-time">
-            {{ msg.timestamp }}
-        </div>
 
-        {% if msg.sender == identity_name %}
+    <!-- =========================
+         FLOATING DOCK (MOBILE)
+    ========================= -->
+
+    <nav class="vault-mobile-dock">
+
+        <a href="/home" class="mdock-item">
+            <span class="mdock-icon">🖼</span>
+        </a>
+
+        <a href="/security" class="mdock-item">
+            <span class="mdock-icon">🛡</span>
+        </a>
+
         <button
+            class="mdock-fab"
             type="button"
-            class="chat-delete-button"
-            onclick="deleteMessage('{{ msg.id }}')"
+            onclick="clearChat()"
+            title="Clear chat"
         >
             🗑
         </button>
-        {% endif %}
 
-    </div>
+        <a href="/activity" class="mdock-item">
+            <span class="mdock-icon">🕒</span>
+        </a>
 
-</div>
+        <a href="/storage" class="mdock-item">
+            <span class="mdock-icon">📊</span>
+        </a>
 
-                {% endfor %}
-
-            {% else %}
-
-                <div class="chat-empty">
-                    No messages yet. Say hi 👋
-                </div>
-
-            {% endif %}
-
-        </div>
-
-
-        <form id="chatForm" class="chat-input-form">
-
-            <input
-                type="text"
-                id="chatInput"
-                placeholder="Type a message..."
-                autocomplete="off"
-                required
-            >
-
-            <button type="submit" class="chat-send-button">
-                Send
-            </button>
-
-        </form>
-
-    </main>
+    </nav>
 
 
     <script>

@@ -147,7 +147,7 @@ function applyTheme(theme) {
     const btn = document.getElementById("themeToggleBtn");
 
     if (btn) {
-        btn.textContent = theme === "terminal" ? "🌌 Normal Mode" : "🖥️ Terminal Mode";
+        btn.textContent = theme === "terminal" ? "🌌 " : "🖥️ ";
     }
 }
 
@@ -183,25 +183,68 @@ if (chatWindow && chatForm && chatInput) {
 
     let lastMessageCount = 0;
 
-    function scrollChatToBottom() {
-        chatWindow.scrollTop = chatWindow.scrollHeight;
+    const scrollBtn = document.getElementById("scrollToBottomBtn");
+
+    function isNearBottom() {
+        return chatWindow.scrollHeight - chatWindow.scrollTop - chatWindow.clientHeight < 120;
+    }
+
+    function scrollChatToBottom(force) {
+
+        if (force || isNearBottom()) {
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        if (scrollBtn) scrollBtn.classList.remove("show");
+    }
+
+    chatWindow.addEventListener("scroll", function () {
+
+        if (scrollBtn) {
+            scrollBtn.classList.toggle("show", !isNearBottom());
+        }
+
+    });
+
+    function buildAttachmentHtml(attachment) {
+
+        if (!attachment) return "";
+
+        if (attachment.type === "image") {
+            return `<img src="${attachment.url}" class="chat-attachment-image" alt="${attachment.filename}" onclick="window.open('${attachment.url}', '_blank')">`;
+        }
+
+        return `
+            <a href="${attachment.url}" target="_blank" class="chat-attachment-file">
+                <span class="chat-attachment-file-icon">📄</span>
+                <span class="chat-attachment-file-name">${attachment.filename}</span>
+            </a>
+        `;
     }
 
     function renderMessages(messages) {
 
+        // Always keep the scroll-to-bottom button in the DOM
+        const scrollBtnHtml = '<button class="chat-scroll-btn" id="scrollToBottomBtn" onclick="scrollChatToBottom(true)" type="button">↓</button>';
+
         if (!messages || messages.length === 0) {
 
-            chatWindow.innerHTML = '<div class="chat-empty">No messages yet. Say hi 👋</div>';
+            chatWindow.innerHTML = '<div class="chat-empty">No messages yet. Say hi 👋</div>' + scrollBtnHtml;
+
+            lastMessageCount = 0;
 
             return;
         }
 
-        chatWindow.innerHTML = messages.map(function (msg) {
+        let lastDateLabel = null;
+
+        const bubblesHtml = messages.map(function (msg) {
 
             const rowClass = msg.sender === CURRENT_IDENTITY ? "mine" : "theirs";
 
-            // Basic escaping so someone typing HTML doesn't break the page
-            const safeText = msg.text
+            const initial = (msg.sender || "?").charAt(0).toUpperCase();
+
+            const safeText = (msg.text || "")
                 .replace(/&/g, "&amp;")
                 .replace(/</g, "&lt;")
                 .replace(/>/g, "&gt;");
@@ -210,11 +253,29 @@ if (chatWindow && chatForm && chatInput) {
                 ? `<button type="button" class="chat-delete-button" onclick="deleteMessage('${msg.id}')">🗑</button>`
                 : "";
 
+            const attachmentHtml = buildAttachmentHtml(msg.attachment);
+
+            const textHtml = safeText
+                ? `<div class="chat-bubble-text">${safeText}</div>`
+                : "";
+
+            const dateLabel = (msg.timestamp || "").split(",")[0];
+
+            let divider = "";
+
+            if (dateLabel !== lastDateLabel) {
+                divider = `<div class="chat-date-divider">${dateLabel}</div>`;
+                lastDateLabel = dateLabel;
+            }
+
             return `
+                ${divider}
                 <div class="chat-bubble-row ${rowClass}">
+                    <div class="chat-avatar">${initial}</div>
                     <div class="chat-bubble">
                         <div class="chat-bubble-sender">${msg.sender}</div>
-                        <div class="chat-bubble-text">${safeText}</div>
+                        ${attachmentHtml}
+                        ${textHtml}
                         <div class="chat-bubble-time">${msg.timestamp}</div>
                         ${deleteButton}
                     </div>
@@ -223,7 +284,36 @@ if (chatWindow && chatForm && chatInput) {
 
         }).join("");
 
+        chatWindow.innerHTML = bubblesHtml + scrollBtnHtml;
+
         lastMessageCount = messages.length;
+    }
+
+    function renderSharedFiles(files) {
+
+        const list = document.getElementById("sharedFilesList");
+
+        if (!list) return;
+
+        if (!files || files.length === 0) {
+            list.innerHTML = '<div class="shared-files-empty">No files shared yet.</div>';
+            return;
+        }
+
+        list.innerHTML = files.map(function (file) {
+
+            const thumb = file.type === "image"
+                ? `<img src="${file.url}" class="shared-file-thumb" alt="">`
+                : `<span class="shared-file-icon">📄</span>`;
+
+            return `
+                <a href="${file.url}" target="_blank" class="shared-file-item">
+                    ${thumb}
+                    <span class="shared-file-name">${file.filename}</span>
+                </a>
+            `;
+
+        }).join("");
     }
 
     async function fetchMessages() {
@@ -245,6 +335,7 @@ if (chatWindow && chatForm && chatInput) {
             }
 
             renderMessages(data.messages);
+            renderSharedFiles(data.shared_files);
 
             scrollChatToBottom();
 
@@ -279,7 +370,8 @@ if (chatWindow && chatForm && chatInput) {
 
             if (data.messages) {
                 renderMessages(data.messages);
-                scrollChatToBottom();
+                renderSharedFiles(data.shared_files);
+                scrollChatToBottom(true);
             }
 
         } catch (error) {
@@ -289,14 +381,52 @@ if (chatWindow && chatForm && chatInput) {
         }
     });
 
+    // =========================
+    // UPLOAD FILE / IMAGE ATTACHMENT
+    // =========================
+
+    async function uploadChatFile(file) {
+
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+
+            const response = await fetch("/api/send-file", {
+                method: "POST",
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (data.messages) {
+                renderMessages(data.messages);
+                renderSharedFiles(data.shared_files);
+                scrollChatToBottom(true);
+            } else if (data.error) {
+                alert(data.error);
+            }
+
+        } catch (error) {
+
+            console.log("File upload error:", error);
+            alert("Upload failed. Please try again.");
+
+        }
+    }
+
+    window.uploadChatFile = uploadChatFile;
+    window.scrollChatToBottom = scrollChatToBottom;
+
     // Initial scroll to bottom on page load
-    scrollChatToBottom();
+    scrollChatToBottom(true);
 
     // Auto-refresh every 1.5 seconds
     setInterval(fetchMessages, 1500);
 
-    // Also refresh immediately whenever the tab becomes active again,
-    // so reopening the chat doesn't wait for the next timer tick
+    // Also refresh immediately whenever the tab becomes active again
     document.addEventListener("visibilitychange", function () {
         if (!document.hidden) {
             fetchMessages();
@@ -321,6 +451,7 @@ if (chatWindow && chatForm && chatInput) {
 
             if (data.messages) {
                 renderMessages(data.messages);
+                renderSharedFiles(data.shared_files);
             }
 
         } catch (error) {
@@ -352,6 +483,7 @@ if (chatWindow && chatForm && chatInput) {
             const data = await response.json();
 
             renderMessages(data.messages);
+            renderSharedFiles(data.shared_files);
 
         } catch (error) {
 
@@ -552,3 +684,28 @@ document.addEventListener("keydown", function (event) {
     }
 
 });
+// =========================
+// VAULT DOCK — SLIDING PILL INDICATOR
+// =========================
+
+(function () {
+
+    const dockNav = document.getElementById("dockNav");
+    const dockPill = document.getElementById("dockPill");
+
+    if (!dockNav || !dockPill) return;
+
+    function positionPill() {
+
+        const activeItem = dockNav.querySelector(".dock-item.active");
+
+        if (!activeItem) return;
+
+        dockPill.style.width = activeItem.offsetWidth + "px";
+        dockPill.style.transform = `translateX(${activeItem.offsetLeft - 4}px)`;
+    }
+
+    window.addEventListener("load", positionPill);
+    window.addEventListener("resize", positionPill);
+
+})();

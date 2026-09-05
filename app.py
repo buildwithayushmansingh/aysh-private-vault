@@ -43,23 +43,12 @@ app.secret_key = os.getenv("SECRET_KEY")
 # =========================================================
 # SESSION GENERATION
 # =========================================================
-# Every time this value changes, all old login sessions
-# become invalid.
-#
-# No database required.
-# =========================================================
 
 SESSION_GENERATION = secrets.token_hex(32)
 
 
 # =========================================================
 # LOGIN CREDENTIALS
-# =========================================================
-# Two usernames, one shared password. Whichever username
-# is used to log in becomes that person's identity for the
-# session - this is what powers the Welcome banner and
-# chat sender name reliably (unlike the free-text display
-# name box, which is just a casual label for activity logs).
 # =========================================================
 
 PASSWORD = os.getenv("VAULT_PASSWORD")
@@ -71,10 +60,12 @@ USERS = {
 
 
 # =========================================================
-# CLOUDINARY FOLDER
+# CLOUDINARY FOLDERS
 # =========================================================
 
 CLOUDINARY_FOLDER = "private-vault"
+
+CHAT_ATTACHMENTS_FOLDER = "private-vault-chat"
 
 ACTIVITY_LOG_PUBLIC_ID = "private-vault-meta/activity_log"
 
@@ -84,19 +75,12 @@ CHAT_LOG_PUBLIC_ID = "private-vault-meta/chat_log"
 # =========================================================
 # ACTIVE SESSIONS (IN-MEMORY)
 # =========================================================
-# Resets if the server restarts. Fine for a small shared
-# vault - not meant to be a permanent session database.
-# =========================================================
 
 ACTIVE_SESSIONS = {}
 
 
 # =========================================================
 # GENERIC CLOUDINARY JSON STORE HELPERS
-# =========================================================
-# Used for both the activity log and the chat log - each
-# is just a JSON file living in Cloudinary, so both survive
-# Render restarts permanently, same as your photos.
 # =========================================================
 
 def load_json_store(public_id):
@@ -110,8 +94,6 @@ def load_json_store(public_id):
             resource_type="raw"
         )[0]
 
-        # Cache-bust so we always get the freshest version,
-        # since Cloudinary's CDN can serve stale cached copies.
         url = f"{url}?t={int(time.time())}"
 
         import urllib.request
@@ -159,7 +141,6 @@ def load_activity_log():
 
 def save_activity_log(entries):
 
-    # Keep only the most recent 100 entries
     entries = entries[-100:]
 
     save_json_store(ACTIVITY_LOG_PUBLIC_ID, entries)
@@ -184,11 +165,9 @@ def add_activity(action, filename, actor, action_type, device=None):
 # =========================================================
 # CHAT LOG HELPERS
 # =========================================================
-# Kept permanently - no trimming - per your request.
-# Worth knowing: Cloudinary's free plan has file size
-# limits, so an extremely long chat history (thousands of
-# messages) could eventually need trimming. Not a concern
-# for normal day-to-day use.
+# Kept permanently - no trimming.
+# Each message may optionally include an "attachment" dict:
+# { "url": ..., "type": "image" | "file", "filename": ... }
 # =========================================================
 
 def load_chat_log():
@@ -199,7 +178,7 @@ def save_chat_log(messages):
     save_json_store(CHAT_LOG_PUBLIC_ID, messages)
 
 
-def add_message(sender, text):
+def add_message(sender, text, attachment=None):
 
     messages = load_chat_log()
 
@@ -207,12 +186,24 @@ def add_message(sender, text):
         "id": secrets.token_hex(6),
         "sender": sender,
         "text": text,
+        "attachment": attachment,
         "timestamp": datetime.now().strftime("%d %b, %I:%M %p")
     })
 
     save_chat_log(messages)
 
     return messages
+
+
+def get_shared_files():
+
+    messages = load_chat_log()
+
+    files = [m["attachment"] for m in messages if m.get("attachment")]
+
+    return list(reversed(files))
+
+
 # =========================================================
 # DEVICE LABEL FROM USER-AGENT
 # =========================================================
@@ -243,7 +234,6 @@ def get_device_label(user_agent_string):
 @app.before_request
 def check_session():
 
-    # These routes should work without login
     allowed_endpoints = [
         "login",
         "login_check",
@@ -253,13 +243,10 @@ def check_session():
     if request.endpoint in allowed_endpoints:
         return
 
-    # If user is logged in, check whether the session
-    # belongs to the current session generation.
     if session.get("logged_in"):
 
         if session.get("session_generation") != SESSION_GENERATION:
 
-            # Old session -> logout
             session.clear()
 
             return redirect("/")
@@ -297,20 +284,12 @@ def login_check():
 
         session["logged_in"] = True
 
-        # Store current session generation
         session["session_generation"] = SESSION_GENERATION
 
-        # Reliable identity, based on which username logged in.
-        # Powers the Welcome banner and chat sender name.
         session["identity_name"] = identity_name
 
-        # Free-text label, kept separately for the activity log
-        # (defaults to identity_name if left blank).
         session["display_name"] = display_name if display_name else identity_name
 
-        # Track this session as an active device.
-        # Keyed by device type + IP, so re-logging in from the
-        # same device updates its entry instead of duplicating it.
         device_label = get_device_label(request.headers.get("User-Agent"))
 
         sid = f"{device_label}_{request.remote_addr}"
@@ -462,10 +441,8 @@ def rename_photo():
     if not old_public_id or not new_name:
         return redirect("/home")
 
-    # Remove extension if user enters one
     new_name = os.path.splitext(new_name)[0]
 
-    # Keep photo inside private-vault folder
     new_public_id = f"{CLOUDINARY_FOLDER}/{new_name}"
 
     try:
@@ -601,9 +578,12 @@ def chat_page():
 
     messages = load_chat_log()
 
+    shared_files = get_shared_files()
+
     return render_template(
         "chat.html",
         messages=messages,
+        shared_files=shared_files,
         display_name=session.get("display_name", ""),
         identity_name=session.get("identity_name", "")
     )
@@ -621,11 +601,14 @@ def get_messages():
 
     messages = load_chat_log()
 
-    return jsonify({"messages": messages})
+    return jsonify({
+        "messages": messages,
+        "shared_files": get_shared_files()
+    })
 
 
 # =========================================================
-# CHAT - SEND MESSAGE
+# CHAT - SEND TEXT MESSAGE
 # =========================================================
 
 @app.route("/api/send-message", methods=["POST"])
@@ -645,7 +628,54 @@ def send_message():
 
     messages = add_message(sender, text)
 
-    return jsonify({"messages": messages})
+    return jsonify({"messages": messages, "shared_files": get_shared_files()})
+
+
+# =========================================================
+# CHAT - SEND FILE / IMAGE ATTACHMENT
+# =========================================================
+
+@app.route("/api/send-file", methods=["POST"])
+def send_file():
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    uploaded_file = request.files.get("file")
+
+    if not uploaded_file or not uploaded_file.filename:
+        return jsonify({"error": "No file provided"}), 400
+
+    sender = session.get("identity_name", "Someone")
+
+    filename = uploaded_file.filename
+
+    is_image = uploaded_file.mimetype.startswith("image/")
+
+    try:
+
+        result = cloudinary.uploader.upload(
+            uploaded_file,
+            folder=CHAT_ATTACHMENTS_FOLDER,
+            resource_type="image" if is_image else "raw"
+        )
+
+        attachment = {
+            "url": result.get("secure_url"),
+            "type": "image" if is_image else "file",
+            "filename": filename
+        }
+
+        messages = add_message(sender, "", attachment=attachment)
+
+        return jsonify({"messages": messages, "shared_files": get_shared_files()})
+
+    except Exception as e:
+
+        print("Chat file upload error:", e)
+
+        return jsonify({"error": f"Upload failed: {e}"}), 500
+
 
 # =========================================================
 # CHAT - DELETE ONE MESSAGE
@@ -667,7 +697,7 @@ def delete_message():
 
     save_chat_log(messages)
 
-    return jsonify({"messages": messages})
+    return jsonify({"messages": messages, "shared_files": get_shared_files()})
 
 
 # =========================================================
@@ -682,7 +712,9 @@ def clear_chat():
 
     save_chat_log([])
 
-    return jsonify({"messages": []})
+    return jsonify({"messages": [], "shared_files": []})
+
+
 # =========================================================
 # LOGOUT CURRENT DEVICE
 # =========================================================
@@ -709,16 +741,10 @@ def logout_all():
 
     global SESSION_GENERATION
 
-    # Generate a completely new session generation.
-    #
-    # All previously logged-in devices have the OLD generation.
-    # Therefore, they will automatically become invalid.
     SESSION_GENERATION = secrets.token_hex(32)
 
-    # Clear all tracked active sessions
     ACTIVE_SESSIONS.clear()
 
-    # Logout current device too
     session.clear()
 
     return redirect("/")
