@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, session, jsonify
 import os
 import secrets
 import json
+import threading
 from datetime import datetime
 
 from dotenv import load_dotenv
@@ -71,6 +72,8 @@ ACTIVITY_LOG_PUBLIC_ID = "private-vault-meta/activity_log"
 
 CHAT_LOG_PUBLIC_ID = "private-vault-meta/chat_log"
 
+FAVORITES_PUBLIC_ID = "private-vault-meta/favorites"
+
 
 # =========================================================
 # ACTIVE SESSIONS (IN-MEMORY)
@@ -129,6 +132,18 @@ def save_json_store(public_id, entries):
     except Exception as e:
 
         print(f"JSON store save error for {public_id}:", e)
+
+
+# =========================================================
+# FAVORITES HELPERS
+# =========================================================
+
+def load_favorites():
+    return load_json_store(FAVORITES_PUBLIC_ID)
+
+
+def save_favorites(favorites):
+    save_json_store(FAVORITES_PUBLIC_ID, favorites)
 
 
 # =========================================================
@@ -266,10 +281,9 @@ def login():
 
 
 # =========================================================
-# LOGIN
+# LOGIN LOGIC (plain helper - NOT a route)
 # =========================================================
 
-@app.route("/login", methods=["POST"])
 def perform_login(username, password, display_name, request):
 
     username = username.strip().lower()
@@ -297,7 +311,11 @@ def perform_login(username, password, display_name, request):
             "login_time": datetime.now().strftime("%d %b, %I:%M %p")
         }
 
-        add_activity("logged in", None, session["display_name"], "login", device=device_label)
+        threading.Thread(
+            target=add_activity,
+            args=("logged in", None, session["display_name"], "login"),
+            kwargs={"device": device_label}
+        ).start()
 
         return True
 
@@ -330,6 +348,8 @@ def api_login():
         return jsonify({"success": True})
 
     return jsonify({"success": False, "error": "Wrong username or password"}), 401
+
+
 # =========================================================
 # HOME / GALLERY
 # =========================================================
@@ -340,39 +360,47 @@ def home():
     if not session.get("logged_in"):
         return redirect("/")
 
-    try:
+    result_holder = {}
 
-        result = cloudinary.api.resources(
-            type="upload",
-            resource_type="image",
-            prefix=CLOUDINARY_FOLDER,
-            max_results=100
-        )
+    def fetch_photos():
+        try:
+            result = cloudinary.api.resources(
+                type="upload",
+                resource_type="image",
+                prefix=CLOUDINARY_FOLDER,
+                max_results=100
+            )
+            result_holder["photos"] = [
+                {
+                    "url": r["secure_url"],
+                    "public_id": r["public_id"],
+                    "filename": r["public_id"].split("/")[-1]
+                }
+                for r in result.get("resources", [])
+            ]
+        except Exception as e:
+            print("Cloudinary error:", e)
+            result_holder["photos"] = []
 
-        photos = []
+    def fetch_favorites():
+        result_holder["favorites"] = load_favorites()
 
-        for resource in result.get("resources", []):
+    t1 = threading.Thread(target=fetch_photos)
+    t2 = threading.Thread(target=fetch_favorites)
 
-            photos.append({
-                "url": resource["secure_url"],
-                "public_id": resource["public_id"],
-                "filename": resource["public_id"].split("/")[-1]
-            })
+    t1.start()
+    t2.start()
 
-    except Exception as e:
-
-        print("Cloudinary error:", e)
-
-        photos = []
+    t1.join()
+    t2.join()
 
     return render_template(
         "index.html",
-        photos=photos,
+        photos=result_holder["photos"],
+        favorites=result_holder["favorites"],
         display_name=session.get("display_name", ""),
         identity_name=session.get("identity_name", "")
     )
-
-
 # =========================================================
 # UPLOAD PHOTO
 # =========================================================
@@ -650,6 +678,37 @@ def send_message():
     messages = add_message(sender, text)
 
     return jsonify({"messages": messages, "shared_files": get_shared_files()})
+
+
+# =========================================================
+# FAVORITES - TOGGLE
+# =========================================================
+
+@app.route("/api/toggle-favorite", methods=["POST"])
+def toggle_favorite():
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    data = request.get_json(silent=True) or {}
+
+    public_id = data.get("public_id")
+
+    if not public_id:
+        return jsonify({"error": "Missing public_id"}), 400
+
+    favorites = load_favorites()
+
+    if public_id in favorites:
+        favorites.remove(public_id)
+        is_favorite = False
+    else:
+        favorites.append(public_id)
+        is_favorite = True
+
+    save_favorites(favorites)
+
+    return jsonify({"is_favorite": is_favorite, "favorites": favorites})
 
 
 # =========================================================

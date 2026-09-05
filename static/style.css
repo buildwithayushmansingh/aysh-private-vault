@@ -2758,3 +2758,59 @@ body {
     border-radius: 30px;
     padding: 12px 26px;
 }
+/* =========================
+   FAVORITE HEART ICON
+========================= */
+
+.vault-favorite-btn {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+
+    z-index: 6;
+
+    width: 30px;
+    height: 30px;
+
+    border: none;
+    border-radius: 50%;
+
+    background: rgba(0, 0, 0, 0.45);
+
+    color: rgba(255, 255, 255, 0.85);
+
+    font-size: 15px;
+
+    cursor: pointer;
+
+    opacity: 0;
+
+    transition: opacity 0.25s ease, transform 0.2s ease, color 0.2s ease;
+}
+
+.vault-item:hover .vault-favorite-btn {
+    opacity: 1;
+}
+
+.vault-favorite-btn.active {
+    opacity: 1;
+    color: #ff4d6d;
+}
+
+.vault-favorite-btn:hover {
+    transform: scale(1.15);
+}
+
+.vault-favorite-btn.active:hover {
+    transform: scale(1.15);
+}
+
+.vault-favorite-btn.pulse {
+    animation: favoritePulse 0.35s ease;
+}
+
+@keyframes favoritePulse {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.4); }
+    100% { transform: scale(1); }
+}

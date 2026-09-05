@@ -184,18 +184,15 @@
                 }
             });
 
-            function runCinematicTransition() {
+                        function runCinematicTransition() {
 
                 const colors = getThemeColors();
 
-                // Match the outgoing page's background to /home's background
-                // so the real navigation at the end is invisible, not a flash.
                 document.body.style.background = colors.bg;
 
                 transitionEl.style.background = colors.bg;
                 transitionEl.style.display = "block";
 
-                // Phase 1 (0-500ms): login card fades + zooms out
                 loginCard.style.transition = "opacity 0.5s ease, transform 0.5s ease";
                 loginCard.style.opacity = "0";
                 loginCard.style.transform = "scale(1.08)";
@@ -217,30 +214,49 @@
                 camera.position.z = 5;
 
                 const accentColor = hexToThreeColor(colors.accent);
+                const whiteColor = new THREE.Color(0xffffff);
 
-                // Particle field
-                const particleCount = window.innerWidth < 700 ? 1200 : 2500;
+                // ============ SPIRAL PARTICLE FIELD ============
+                // Stored in polar form (radius + angle) per particle so we
+                // can swirl them around the z-axis each frame - this is what
+                // gives the "flying into a rotating vortex" feel instead of
+                // a flat straight-line rush.
+
+                const particleCount = window.innerWidth < 700 ? 1400 : 3000;
+
+                const radius = new Float32Array(particleCount);
+                const angle = new Float32Array(particleCount);
+                const zPos = new Float32Array(particleCount);
+                const speeds = new Float32Array(particleCount);
+                const colorMix = new Float32Array(particleCount);
 
                 const positions = new Float32Array(particleCount * 3);
-                const speeds = new Float32Array(particleCount);
+                const colorsAttr = new Float32Array(particleCount * 3);
 
                 for (let i = 0; i < particleCount; i++) {
 
-                    positions[i * 3] = (Math.random() - 0.5) * 60;
-                    positions[i * 3 + 1] = (Math.random() - 0.5) * 60;
-                    positions[i * 3 + 2] = (Math.random() - 0.5) * 400;
+                    radius[i] = 1.5 + Math.random() * 22;
+                    angle[i] = Math.random() * Math.PI * 2;
+                    zPos[i] = (Math.random() - 0.5) * 500;
+                    speeds[i] = 0.5 + Math.random() * 1.6;
+                    colorMix[i] = Math.random();
 
-                    speeds[i] = 0.5 + Math.random() * 1.5;
+                    const mixed = accentColor.clone().lerp(whiteColor, colorMix[i] * 0.5);
+
+                    colorsAttr[i * 3] = mixed.r;
+                    colorsAttr[i * 3 + 1] = mixed.g;
+                    colorsAttr[i * 3 + 2] = mixed.b;
                 }
 
                 const geometry = new THREE.BufferGeometry();
                 geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+                geometry.setAttribute("color", new THREE.BufferAttribute(colorsAttr, 3));
 
                 const material = new THREE.PointsMaterial({
-                    color: accentColor,
-                    size: 1.6,
+                    size: 1.7,
+                    vertexColors: true,
                     transparent: true,
-                    opacity: 0.85,
+                    opacity: 0.9,
                     blending: THREE.AdditiveBlending,
                     depthWrite: false
                 });
@@ -248,7 +264,31 @@
                 const particles = new THREE.Points(geometry, material);
                 scene.add(particles);
 
-                // A few thin glowing "data lines" for phase 3
+                // ============ ROTATING VORTEX RING ============
+                // A glowing torus the camera flies through partway
+                // through the animation - a distinct focal moment.
+
+                const ringGeo = new THREE.TorusGeometry(9, 0.06, 16, 100);
+                const ringMat = new THREE.MeshBasicMaterial({
+                    color: accentColor,
+                    transparent: true,
+                    opacity: 0
+                });
+                const vortexRing = new THREE.Mesh(ringGeo, ringMat);
+                vortexRing.position.z = -60;
+                scene.add(vortexRing);
+
+                const ringGeo2 = new THREE.TorusGeometry(5, 0.045, 16, 100);
+                const ringMat2 = new THREE.MeshBasicMaterial({
+                    color: whiteColor,
+                    transparent: true,
+                    opacity: 0
+                });
+                const vortexRing2 = new THREE.Mesh(ringGeo2, ringMat2);
+                vortexRing2.position.z = -110;
+                scene.add(vortexRing2);
+
+                // Thin glowing data lines for the later phase
                 const lineGroup = new THREE.Group();
 
                 for (let i = 0; i < 14; i++) {
@@ -258,10 +298,7 @@
                     const y = (Math.random() - 0.5) * 30;
                     const z = -Math.random() * 200;
 
-                    const pts = new Float32Array([
-                        -30, y, z,
-                        30, y, z
-                    ]);
+                    const pts = new Float32Array([-30, y, z, 30, y, z]);
 
                     lineGeo.setAttribute("position", new THREE.BufferAttribute(pts, 3));
 
@@ -271,9 +308,7 @@
                         opacity: 0
                     });
 
-                    const line = new THREE.Line(lineGeo, lineMat);
-
-                    lineGroup.add(line);
+                    lineGroup.add(new THREE.Line(lineGeo, lineMat));
                 }
 
                 scene.add(lineGroup);
@@ -286,10 +321,10 @@
 
                 window.addEventListener("resize", onResize);
 
-                // ============ TIMELINE ============
+                // ============ TIMELINE (4.5 seconds total) ============
 
                 const startTime = performance.now();
-                const TOTAL_MS = 3000;
+                const TOTAL_MS = 2500;
 
                 function easeInOutCubic(t) {
                     return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -298,62 +333,112 @@
                 function animate(now) {
 
                     const elapsed = now - startTime;
-                    const t = Math.min(elapsed / TOTAL_MS, 1);
 
-                    // Base forward camera speed ramps up through phase 1-2,
-                    // holds through phase 3, then everything settles in phase 4.
                     let speedMultiplier = 1;
+                    let swirlSpeed = 0.004;
 
-                    if (elapsed < 500) {
-                        speedMultiplier = easeInOutCubic(elapsed / 500) * 1.5;
-                    } else if (elapsed < 1500) {
-                        speedMultiplier = 1.5 + easeInOutCubic((elapsed - 500) / 1000) * 2.5;
-                    } else if (elapsed < 2400) {
-                        speedMultiplier = 4 - easeInOutCubic((elapsed - 1500) / 900) * 2.5;
+                    if (elapsed < 400) {
+
+                        // Phase 1: gentle pull in, swirl just starting
+                        const t = easeInOutCubic(elapsed / 400);
+                        speedMultiplier = t * 1.5;
+                        swirlSpeed = 0.01 + t * 0.02;
+
+                    } else if (elapsed < 1250) {
+
+                        // Phase 2: full warp, spiral tightens and accelerates
+                        const t = easeInOutCubic((elapsed - 400) / 850);
+                        speedMultiplier = 1.5 + t * 4;
+                        swirlSpeed = 0.03 + t * 0.06;
+
+                    } else if (elapsed < 2000) {
+
+                        // Phase 3: eases down into the data environment, ring flythrough
+                        const t = easeInOutCubic((elapsed - 1250) / 750);
+                        speedMultiplier = 5.5 - t * 3.5;
+                        swirlSpeed = 0.09 - t * 0.06;
+
                     } else {
-                        speedMultiplier = Math.max(1.5 - easeInOutCubic((elapsed - 2400) / 600) * 1.5, 0);
+
+                        // Phase 4: rapid stabilize and fade
+                        const t = easeInOutCubic((elapsed - 2000) / 500);
+                        speedMultiplier = Math.max(2 * (1 - t), 0);
+                        swirlSpeed = Math.max(0.03 * (1 - t), 0);
                     }
 
-                    // Move particles toward camera
+                    // Update spiral particle positions
                     const posAttr = particles.geometry.attributes.position;
 
                     for (let i = 0; i < particleCount; i++) {
 
-                        posAttr.array[i * 3 + 2] += speeds[i] * speedMultiplier;
+                        angle[i] += swirlSpeed * (1 + (1 - Math.min(radius[i] / 24, 1)) * 1.5);
+                        zPos[i] += speeds[i] * speedMultiplier;
 
-                        if (posAttr.array[i * 3 + 2] > 20) {
-                            posAttr.array[i * 3 + 2] = -400;
+                        if (zPos[i] > 20) {
+                            zPos[i] = -500;
+                            radius[i] = 1.5 + Math.random() * 22;
                         }
+
+                        const r = radius[i];
+
+                        posAttr.array[i * 3] = r * Math.cos(angle[i]);
+                        posAttr.array[i * 3 + 1] = r * Math.sin(angle[i]);
+                        posAttr.array[i * 3 + 2] = zPos[i];
                     }
 
                     posAttr.needsUpdate = true;
 
-                    // Phase 3: fade in data lines + slight rotation/parallax
-                    if (elapsed > 1500 && elapsed < 2600) {
+                    // Camera roll - the "rounding" feel as it travels
+                    camera.rotation.z = Math.sin(elapsed / 1400) * 0.12 + (elapsed / TOTAL_MS) * 0.25;
+                    camera.position.x = Math.sin(elapsed / 900) * 0.4;
+                    camera.position.y = Math.cos(elapsed / 1100) * 0.3;
 
-                        const lineT = Math.min((elapsed - 1500) / 500, 1);
+                    // Vortex ring flythrough - fades in, camera passes through it, fades out
+                    if (elapsed > 900 && elapsed < 2600) {
 
-                        lineGroup.children.forEach(function (line) {
-                            line.material.opacity = lineT * 0.35;
-                        });
+                        const ringT = Math.min((elapsed - 900) / 500, 1);
+                        ringMat.opacity = Math.min(ringT, 1) * 0.55;
+                        ringMat2.opacity = Math.min(ringT, 1) * 0.4;
 
-                        scene.rotation.y = Math.sin(elapsed / 1000) * 0.04;
-                        scene.rotation.x = Math.cos(elapsed / 1200) * 0.02;
+                        vortexRing.position.z += 0.09 * speedMultiplier;
+                        vortexRing2.position.z += 0.09 * speedMultiplier;
+                        vortexRing.rotation.z += 0.01;
+                        vortexRing2.rotation.z -= 0.014;
+
+                        if (vortexRing.position.z > 12) {
+                            ringMat.opacity *= 0.9;
+                            ringMat2.opacity *= 0.9;
+                        }
 
                     } else if (elapsed >= 2600) {
 
+                        ringMat.opacity = Math.max(ringMat.opacity - 0.03, 0);
+                        ringMat2.opacity = Math.max(ringMat2.opacity - 0.03, 0);
+                    }
+
+                    // Data lines fade in during phase 3
+                    if (elapsed > 2250 && elapsed < 3800) {
+
+                        const lineT = Math.min((elapsed - 2250) / 500, 1);
+
                         lineGroup.children.forEach(function (line) {
-                            line.material.opacity = Math.max(0.35 - ((elapsed - 2600) / 400) * 0.35, 0);
+                            line.material.opacity = lineT * 0.3;
+                        });
+
+                    } else if (elapsed >= 3800) {
+
+                        lineGroup.children.forEach(function (line) {
+                            line.material.opacity = Math.max(line.material.opacity - 0.03, 0);
                         });
                     }
 
-                    // Phase 4: fade the whole scene out
-                    if (elapsed > 2400) {
+                    // Final fade out
+                    if (elapsed > 3600) {
 
-                        const fadeT = Math.min((elapsed - 2400) / 600, 1);
+                        const fadeT = Math.min((elapsed - 3600) / 900, 1);
 
-                        material.opacity = Math.max(0.85 * (1 - fadeT), 0);
-                        renderer.domElement.style.opacity = String(1 - fadeT * 0.4);
+                        material.opacity = Math.max(0.9 * (1 - fadeT), 0);
+                        renderer.domElement.style.opacity = String(1 - fadeT * 0.5);
                     }
 
                     renderer.render(scene, camera);
@@ -367,7 +452,6 @@
 
                 requestAnimationFrame(animate);
             }
-
             function finishTransition() {
                 // Navigate now - background colors already match,
                 // so this handoff reads as seamless rather than a reload.

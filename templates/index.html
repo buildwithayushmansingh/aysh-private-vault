@@ -130,9 +130,17 @@
 
             {% for photo in photos %}
 
-            <div class="vault-item" data-index="{{ loop.index0 }}">
+            <div class="vault-item" data-index="{{ loop.index0 }}" data-public-id="{{ photo.public_id }}">
 
-                <div class="vault-item-inner" onclick="openViewer({{ loop.index0 }})">
+    <button
+        type="button"
+        class="vault-favorite-btn {{ 'active' if photo.public_id in favorites else '' }}"
+        onclick="event.stopPropagation(); toggleFavorite(this, '{{ photo.public_id }}')"
+    >
+        ♥
+    </button>
+
+    <div class="vault-item-inner" onclick="openViewer({{ loop.index0 }})">
 
                     <img
                         src="{{ photo.url }}"

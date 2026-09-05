@@ -575,14 +575,17 @@ function setGalleryFilter(filter, tabButton) {
         } else if (filter === "recent") {
             item.style.display = (total - index) <= 12 ? "" : "none";
         } else if (filter === "favorites") {
-            item.style.display = "none";
+            const isFav = item.querySelector(".vault-favorite-btn")?.classList.contains("active");
+            item.style.display = isFav ? "" : "none";
         }
 
     });
 
     const gallery = document.getElementById("vaultGallery");
 
-    if (gallery && filter === "favorites") {
+    const visibleCount = Array.from(items).filter(i => i.style.display !== "none").length;
+
+    if (gallery && filter === "favorites" && visibleCount === 0) {
 
         if (!document.getElementById("favEmptyMsg")) {
 
@@ -709,3 +712,30 @@ document.addEventListener("keydown", function (event) {
     window.addEventListener("resize", positionPill);
 
 })();
+// =========================
+// TOGGLE FAVORITE
+// =========================
+
+async function toggleFavorite(button, publicId) {
+
+    button.classList.add("pulse");
+    setTimeout(() => button.classList.remove("pulse"), 350);
+
+    try {
+
+        const response = await fetch("/api/toggle-favorite", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ public_id: publicId })
+        });
+
+        const data = await response.json();
+
+        button.classList.toggle("active", data.is_favorite);
+
+    } catch (error) {
+
+        console.log("Toggle favorite error:", error);
+
+    }
+}
