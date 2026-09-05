@@ -270,11 +270,9 @@ def login():
 # =========================================================
 
 @app.route("/login", methods=["POST"])
-def login_check():
+def perform_login(username, password, display_name, request):
 
-    username = request.form.get("username", "").strip().lower()
-    password = request.form.get("password", "")
-    display_name = request.form.get("display_name", "").strip()
+    username = username.strip().lower()
 
     if username in USERS and password == PASSWORD:
 
@@ -283,11 +281,8 @@ def login_check():
         session.clear()
 
         session["logged_in"] = True
-
         session["session_generation"] = SESSION_GENERATION
-
         session["identity_name"] = identity_name
-
         session["display_name"] = display_name if display_name else identity_name
 
         device_label = get_device_label(request.headers.get("User-Agent"))
@@ -304,11 +299,37 @@ def login_check():
 
         add_activity("logged in", None, session["display_name"], "login", device=device_label)
 
+        return True
+
+    return False
+
+
+@app.route("/login", methods=["POST"])
+def login_check():
+
+    username = request.form.get("username", "")
+    password = request.form.get("password", "")
+    display_name = request.form.get("display_name", "").strip()
+
+    if perform_login(username, password, display_name, request):
         return redirect("/home")
 
     return "Wrong Username or Password!"
 
 
+@app.route("/api/login", methods=["POST"])
+def api_login():
+
+    data = request.get_json(silent=True) or {}
+
+    username = data.get("username", "")
+    password = data.get("password", "")
+    display_name = (data.get("display_name") or "").strip()
+
+    if perform_login(username, password, display_name, request):
+        return jsonify({"success": True})
+
+    return jsonify({"success": False, "error": "Wrong username or password"}), 401
 # =========================================================
 # HOME / GALLERY
 # =========================================================
