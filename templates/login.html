@@ -78,8 +78,40 @@
     <div id="loginTransition" class="login-transition">
         <canvas id="transitionCanvas"></canvas>
     </div>
+    <!-- =========================
+     AUTH VERIFIED STATUS SCREEN
+     Shown after the particle animation ends, while
+     /home loads in the background - fills the gap
+     instead of a blank stall.
+========================= -->
 
+<!-- =========================
+     AUTH VERIFIED — 3D STATUS SCENE
+========================= -->
 
+<div id="authStatusScreen" class="auth-status-screen" style="display: none;">
+
+    <canvas id="authCanvas"></canvas>
+
+    <div class="auth-status-overlay">
+
+        <div class="auth-status-title">AUTHENTICATION VERIFIED</div>
+
+        <div class="auth-status-checklist">
+            <div class="auth-check-item" data-delay="0">
+                <span class="auth-check-icon">✓</span> Credentials matched
+            </div>
+            <div class="auth-check-item" data-delay="1">
+                <span class="auth-check-icon">✓</span> Secure connection established
+            </div>
+            <div class="auth-check-item" data-delay="2">
+                <span class="auth-check-icon">✓</span> Access granted
+            </div>
+        </div>
+
+    </div>
+
+</div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
@@ -183,7 +215,168 @@
 
                 }
             });
+            let authScene, authCamera, authRenderer, authAnimFrame;
 
+            function startAuthScene() {
+
+                const canvas = document.getElementById("authCanvas");
+                const colors = getThemeColors();
+
+                authRenderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+                authRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                authRenderer.setSize(window.innerWidth, window.innerHeight);
+
+                authScene = new THREE.Scene();
+
+                authCamera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+                authCamera.position.set(0, 0, 8);
+
+                const accentColor = hexToThreeColor(colors.accent);
+
+                // Ambient floating particles filling the space
+                const count = window.innerWidth < 700 ? 400 : 900;
+                const positions = new Float32Array(count * 3);
+
+                for (let i = 0; i < count; i++) {
+                    positions[i * 3] = (Math.random() - 0.5) * 30;
+                    positions[i * 3 + 1] = (Math.random() - 0.5) * 20;
+                    positions[i * 3 + 2] = (Math.random() - 0.5) * 20 - 5;
+                }
+
+                const particleGeo = new THREE.BufferGeometry();
+                particleGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+
+                const particleMat = new THREE.PointsMaterial({
+                    color: accentColor,
+                    size: 0.05,
+                    transparent: true,
+                    opacity: 0.6,
+                    blending: THREE.AdditiveBlending,
+                    depthWrite: false
+                });
+
+                const ambientParticles = new THREE.Points(particleGeo, particleMat);
+                authScene.add(ambientParticles);
+
+                // 3D lock body: a torus (shackle) + rounded box (body),
+                // built from primitives so no external model is needed.
+
+                const lockGroup = new THREE.Group();
+
+                const bodyGeo = new THREE.BoxGeometry(2.4, 2, 1.2);
+                const bodyMat = new THREE.MeshBasicMaterial({
+                    color: accentColor,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.9
+                });
+                const body = new THREE.Mesh(bodyGeo, bodyMat);
+                body.position.y = -0.3;
+                lockGroup.add(body);
+
+                const shackleGeo = new THREE.TorusGeometry(1, 0.18, 12, 40, Math.PI);
+                const shackleMat = new THREE.MeshBasicMaterial({
+                    color: accentColor,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.9
+                });
+                const shackle = new THREE.Mesh(shackleGeo, shackleMat);
+                shackle.position.y = 0.9;
+                shackle.rotation.z = Math.PI;
+                lockGroup.add(shackle);
+
+                const keyholeGeo = new THREE.CircleGeometry(0.25, 16);
+                const keyholeMat = new THREE.MeshBasicMaterial({
+                    color: accentColor,
+                    transparent: true,
+                    opacity: 0.7
+                });
+                const keyhole = new THREE.Mesh(keyholeGeo, keyholeMat);
+                keyhole.position.set(0, -0.3, 0.61);
+                lockGroup.add(keyhole);
+
+                lockGroup.scale.set(0.01, 0.01, 0.01);
+                lockGroup.position.set(0, 1.2, 0);
+
+                authScene.add(lockGroup);
+
+                // Concentric glow rings around the lock, in 3D so they
+                // tilt with camera movement rather than sitting flat.
+
+                const rings = [];
+
+                for (let i = 0; i < 3; i++) {
+
+                    const ringGeo = new THREE.RingGeometry(1.6 + i * 0.5, 1.65 + i * 0.5, 64);
+                    const ringMat = new THREE.MeshBasicMaterial({
+                        color: accentColor,
+                        transparent: true,
+                        opacity: 0,
+                        side: THREE.DoubleSide
+                    });
+                    const ring = new THREE.Mesh(ringGeo, ringMat);
+                    ring.position.y = 1.2;
+                    ring.userData.baseScale = 1;
+                    authScene.add(ring);
+                    rings.push(ring);
+                }
+
+                const startTime = performance.now();
+
+                function animateAuth(now) {
+
+                    const elapsed = now - startTime;
+
+                    // Lock scales in with a bounce-like ease
+                    const growT = Math.min(elapsed / 500, 1);
+                    const eased = 1 - Math.pow(1 - growT, 3);
+                    const scale = 0.01 + eased * 0.99;
+
+                    lockGroup.scale.set(scale, scale, scale);
+
+                    // Gentle continuous rotation - the "different world" feel
+                    lockGroup.rotation.y = elapsed * 0.0006;
+                    lockGroup.rotation.x = Math.sin(elapsed * 0.0004) * 0.15;
+
+                    // Rings expand and fade, staggered, looping
+                    rings.forEach(function (ring, i) {
+
+                        const cycle = ((elapsed - i * 300) % 1800) / 1800;
+
+                        if (elapsed > i * 300) {
+                            const s = 1 + cycle * 1.2;
+                            ring.scale.set(s, s, s);
+                            ring.material.opacity = Math.max(0.5 * (1 - cycle), 0);
+                        }
+                    });
+
+                    // Ambient particles drift slowly
+                    ambientParticles.rotation.y = elapsed * 0.00008;
+
+                    // Slight camera drift for parallax depth
+                    authCamera.position.x = Math.sin(elapsed * 0.0003) * 0.6;
+                    authCamera.position.y = Math.cos(elapsed * 0.00025) * 0.3;
+                    authCamera.lookAt(0, 1.2, 0);
+
+                    authRenderer.render(authScene, authCamera);
+
+                    authAnimFrame = requestAnimationFrame(animateAuth);
+                }
+
+                requestAnimationFrame(animateAuth);
+
+                window.addEventListener("resize", function () {
+                    if (!authCamera || !authRenderer) return;
+                    authCamera.aspect = window.innerWidth / window.innerHeight;
+                    authCamera.updateProjectionMatrix();
+                    authRenderer.setSize(window.innerWidth, window.innerHeight);
+                });
+            }
+
+            function stopAuthScene() {
+                if (authAnimFrame) cancelAnimationFrame(authAnimFrame);
+            }
                         function runCinematicTransition() {
 
                 const colors = getThemeColors();
@@ -324,7 +517,7 @@
                 // ============ TIMELINE (4.5 seconds total) ============
 
                 const startTime = performance.now();
-                const TOTAL_MS = 2500;
+                const TOTAL_MS = 1000;
 
                 function easeInOutCubic(t) {
                     return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -453,9 +646,22 @@
                 requestAnimationFrame(animate);
             }
             function finishTransition() {
-                // Navigate now - background colors already match,
-                // so this handoff reads as seamless rather than a reload.
-                window.location.href = "/home";
+
+                transitionEl.style.display = "none";
+
+                const statusScreen = document.getElementById("authStatusScreen");
+
+                statusScreen.style.display = "flex";
+
+                requestAnimationFrame(function () {
+                    statusScreen.classList.add("show");
+                    startAuthScene();
+                });
+
+                setTimeout(function () {
+                    stopAuthScene();
+                    window.location.href = "/home";
+                }, 2700);
             }
 
         })();
