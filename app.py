@@ -74,6 +74,8 @@ CHAT_LOG_PUBLIC_ID = "private-vault-meta/chat_log"
 
 FAVORITES_PUBLIC_ID = "private-vault-meta/favorites"
 
+AVATARS_PUBLIC_ID = "private-vault-meta/avatars"
+
 
 # =========================================================
 # ACTIVE SESSIONS (IN-MEMORY)
@@ -145,7 +147,25 @@ def load_favorites():
 def save_favorites(favorites):
     save_json_store(FAVORITES_PUBLIC_ID, favorites)
 
+def load_avatars():
 
+    data = load_json_store(AVATARS_PUBLIC_ID)
+
+    if isinstance(data, dict):
+        return data
+
+    return {}
+
+
+def save_avatars(avatars):
+    save_json_store(AVATARS_PUBLIC_ID, avatars)
+
+
+def get_current_avatar():
+
+    avatars = load_avatars()
+
+    return avatars.get(session.get("identity_name", ""), "")
 # =========================================================
 # ACTIVITY LOG HELPERS
 # =========================================================
@@ -397,6 +417,7 @@ def home():
                 prefix=CLOUDINARY_FOLDER,
                 max_results=100
             )
+
             result_holder["photos"] = [
                 {
                     "url": r["secure_url"],
@@ -405,13 +426,13 @@ def home():
                 }
                 for r in result.get("resources", [])
             ]
+
         except Exception as e:
             print("Cloudinary error:", e)
             result_holder["photos"] = []
 
     def fetch_favorites():
         result_holder["favorites"] = load_favorites()
-
     t1 = threading.Thread(target=fetch_photos)
     t2 = threading.Thread(target=fetch_favorites)
 
@@ -421,12 +442,15 @@ def home():
     t1.join()
     t2.join()
 
+    current_avatar = get_current_avatar()
+
     return render_template(
         "index.html",
         photos=result_holder["photos"],
         favorites=result_holder["favorites"],
         display_name=session.get("display_name", ""),
-        identity_name=session.get("identity_name", "")
+        identity_name=session.get("identity_name", ""),
+        current_avatar=current_avatar
     )
 # =========================================================
 # UPLOAD PHOTO
