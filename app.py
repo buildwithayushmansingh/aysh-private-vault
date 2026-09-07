@@ -185,30 +185,57 @@ def add_activity(action, filename, actor, action_type, device=None):
 # { "url": ..., "type": "image" | "file", "filename": ... }
 # =========================================================
 
+CHAT_CACHE = None
+CHAT_LOCK = threading.Lock()
+
+
 def load_chat_log():
-    return load_json_store(CHAT_LOG_PUBLIC_ID)
+
+    global CHAT_CACHE
+
+    with CHAT_LOCK:
+
+        if CHAT_CACHE is None:
+            CHAT_CACHE = load_json_store(CHAT_LOG_PUBLIC_ID)
+
+        return list(CHAT_CACHE)
 
 
 def save_chat_log(messages):
-    save_json_store(CHAT_LOG_PUBLIC_ID, messages)
+
+    global CHAT_CACHE
+
+    with CHAT_LOCK:
+        CHAT_CACHE = list(messages)
+
+    # Persist to Cloudinary in the background so it doesn't
+    # block the request, and so it never races with the
+    # in-memory cache above (which is now the source of truth).
+    threading.Thread(target=save_json_store, args=(CHAT_LOG_PUBLIC_ID, messages)).start()
 
 
 def add_message(sender, text, attachment=None):
 
-    messages = load_chat_log()
+    global CHAT_CACHE
 
-    messages.append({
-        "id": secrets.token_hex(6),
-        "sender": sender,
-        "text": text,
-        "attachment": attachment,
-        "timestamp": datetime.now().strftime("%d %b, %I:%M %p")
-    })
+    with CHAT_LOCK:
 
-    save_chat_log(messages)
+        if CHAT_CACHE is None:
+            CHAT_CACHE = load_json_store(CHAT_LOG_PUBLIC_ID)
+
+        CHAT_CACHE.append({
+            "id": secrets.token_hex(6),
+            "sender": sender,
+            "text": text,
+            "attachment": attachment,
+            "timestamp": datetime.now().strftime("%d %b, %I:%M %p")
+        })
+
+        messages = list(CHAT_CACHE)
+
+    threading.Thread(target=save_json_store, args=(CHAT_LOG_PUBLIC_ID, messages)).start()
 
     return messages
-
 
 def get_shared_files():
 
@@ -659,7 +686,13 @@ def get_messages():
 # =========================================================
 # CHAT - SEND TEXT MESSAGE
 # =========================================================
+@app.route("/api/avatars")
+def api_avatars():
 
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    return jsonify({"avatars": load_avatars()})
 @app.route("/api/send-message", methods=["POST"])
 def send_message():
 

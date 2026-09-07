@@ -183,6 +183,96 @@ if (chatWindow && chatForm && chatInput) {
 
     let lastMessageCount = 0;
 
+    let avatarUrls = {};
+    let avatarThumbCache = {};
+
+    async function loadAvatarUrls() {
+        try {
+            const res = await fetch("/api/avatars");
+            const data = await res.json();
+            avatarUrls = data.avatars || {};
+        } catch (e) {
+            console.log("Avatar list fetch error:", e);
+        }
+    }
+
+    function generateAvatarThumb(identityName, callback) {
+
+        if (avatarThumbCache[identityName]) {
+            callback(avatarThumbCache[identityName]);
+            return;
+        }
+
+        const url = avatarUrls[identityName];
+
+        if (!url) {
+            callback(null);
+            return;
+        }
+
+        const size = 60;
+        const canvas = document.createElement("canvas");
+
+        const renderer = new THREE.WebGLRenderer({
+            canvas: canvas,
+            alpha: true,
+            antialias: true,
+            preserveDrawingBuffer: true
+        });
+        renderer.setSize(size, size);
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
+        camera.position.set(0, 1.6, 2.2);
+
+        const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
+        scene.add(light);
+
+        const loader = new THREE.GLTFLoader();
+
+        loader.load(url, function (gltf) {
+
+            const model = gltf.scene;
+            model.position.y = -1.6;
+            scene.add(model);
+
+            renderer.render(scene, camera);
+
+            const dataUrl = canvas.toDataURL("image/png");
+
+            avatarThumbCache[identityName] = dataUrl;
+
+            callback(dataUrl);
+
+        }, undefined, function () {
+            callback(null);
+        });
+    }
+
+    function fillAvatarThumbs() {
+
+        const uniqueSenders = new Set();
+
+        document.querySelectorAll(".chat-avatar[data-sender]").forEach(function (el) {
+            uniqueSenders.add(el.getAttribute("data-sender"));
+        });
+
+        uniqueSenders.forEach(function (sender) {
+
+            generateAvatarThumb(sender, function (dataUrl) {
+
+                if (!dataUrl) return;
+
+                document.querySelectorAll(`.chat-avatar[data-sender="${sender}"]`).forEach(function (el) {
+                    el.style.backgroundImage = `url(${dataUrl})`;
+                    el.classList.add("has-avatar");
+                });
+            });
+        });
+    }
+
+    loadAvatarUrls();
+
     const scrollBtn = document.getElementById("scrollToBottomBtn");
 
     function isNearBottom() {
@@ -222,277 +312,325 @@ if (chatWindow && chatForm && chatInput) {
         `;
     }
 
-    function renderMessages(messages) {
+    let renderedMessageIds = new Set();
+    let lastRenderedDateLabel = null;
 
-        // Always keep the scroll-to-bottom button in the DOM
+    function buildBubbleHtml(msg, forceDateLabel) {
+
+        const rowClass = msg.sender === CURRENT_IDENTITY ? "mine" : "theirs";
+
+        const initial = (msg.sender || "?").charAt(0).toUpperCase();
+
+        const safeText = (msg.text || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+
+        const deleteButton = msg.sender === CURRENT_IDENTITY
+            ? `<button type="button" class="chat-delete-button" onclick="deleteMessage('${msg.id}')">🗑</button>`
+            : "";
+
+        const attachmentHtml = buildAttachmentHtml(msg.attachment);
+
+        const textHtml = safeText
+            ? `<div class="chat-bubble-text">${safeText}</div>`
+            : "";
+
+        const dateLabel = (msg.timestamp || "").split(",")[0];
+
+        let divider = "";
+
+        if (forceDateLabel || dateLabel !== lastRenderedDateLabel) {
+            divider = `<div class="chat-date-divider">${dateLabel}</div>`;
+            lastRenderedDateLabel = dateLabel;
+        }
+
+        return `
+            ${divider}
+            <div class="chat-bubble-row ${rowClass}" data-message-id="${msg.id}">
+                <div class="chat-avatar" data-sender="${msg.sender}"><span class="chat-avatar-fallback">${initial}</span></div>
+                <div class="chat-bubble">
+                    <div class="chat-bubble-sender">${msg.sender}</div>
+                    ${attachmentHtml}
+                    ${textHtml}
+                    <div class="chat-bubble-time">${msg.timestamp}</div>
+                    ${deleteButton}
+                </div>
+            </div>
+        `;
+    }
+
+    function renderMessages(messages, forceFull) {
+
         const scrollBtnHtml = '<button class="chat-scroll-btn" id="scrollToBottomBtn" onclick="scrollChatToBottom(true)" type="button">↓</button>';
 
         if (!messages || messages.length === 0) {
 
             chatWindow.innerHTML = '<div class="chat-empty">No messages yet. Say hi 👋</div>' + scrollBtnHtml;
 
+            renderedMessageIds = new Set();
+            lastRenderedDateLabel = null;
             lastMessageCount = 0;
 
             return;
         }
 
-        let lastDateLabel = null;
+        const newIds = messages.map(function (m) { return m.id; });
 
-        const bubblesHtml = messages.map(function (msg) {
+        const hasRemoval = Array.from(renderedMessageIds).some(function (id) {
+            return newIds.indexOf(id) === -1;
+        });
 
-            const rowClass = msg.sender === CURRENT_IDENTITY ? "mine" : "theirs";
+        if (forceFull || hasRemoval || renderedMessageIds.size === 0) {
 
-            const initial = (msg.sender || "?").charAt(0).toUpperCase();
+            lastRenderedDateLabel = null;
 
-            const safeText = (msg.text || "")
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;");
+            const bubblesHtml = messages.map(function (msg) {
+                return buildBubbleHtml(msg, false);
+            }).join("");
 
-            const deleteButton = msg.sender === CURRENT_IDENTITY
-                ? `<button type="button" class="chat-delete-button" onclick="deleteMessage('${msg.id}')">🗑</button>`
-                : "";
+            chatWindow.innerHTML = bubblesHtml + scrollBtnHtml;
 
-            const attachmentHtml = buildAttachmentHtml(msg.attachment);
+            renderedMessageIds = new Set(newIds);
 
-            const textHtml = safeText
-                ? `<div class="chat-bubble-text">${safeText}</div>`
-                : "";
+            fillAvatarThumbs();
 
-            const dateLabel = (msg.timestamp || "").split(",")[0];
+        } else {
 
-            let divider = "";
+            const newMessages = messages.filter(function (msg) {
+                return !renderedMessageIds.has(msg.id);
+            });
 
-            if (dateLabel !== lastDateLabel) {
-                divider = `<div class="chat-date-divider">${dateLabel}</div>`;
-                lastDateLabel = dateLabel;
+            if (newMessages.length === 0) {
+                lastMessageCount = messages.length;
+                return; // nothing changed - skip touching the DOM entirely, no blink
             }
 
-            return `
-                ${divider}
-                <div class="chat-bubble-row ${rowClass}">
-                    <div class="chat-avatar">${initial}</div>
-                    <div class="chat-bubble">
-                        <div class="chat-bubble-sender">${msg.sender}</div>
-                        ${attachmentHtml}
-                        ${textHtml}
-                        <div class="chat-bubble-time">${msg.timestamp}</div>
-                        ${deleteButton}
-                    </div>
-                </div>
-            `;
+            const oldBtn = document.getElementById("scrollToBottomBtn");
+            if (oldBtn) oldBtn.remove();
 
-        }).join("");
+            const appendHtml = newMessages.map(function (msg) {
+                return buildBubbleHtml(msg, false);
+            }).join("");
 
-        chatWindow.innerHTML = bubblesHtml + scrollBtnHtml;
+            chatWindow.insertAdjacentHTML("beforeend", appendHtml + scrollBtnHtml);
+
+            newMessages.forEach(function (msg) {
+                renderedMessageIds.add(msg.id);
+            });
+
+            fillAvatarThumbs();
+        }
 
         lastMessageCount = messages.length;
     }
 
-    function renderSharedFiles(files) {
+    
 
-        const list = document.getElementById("sharedFilesList");
+function renderSharedFiles(files) {
 
-        if (!list) return;
+    const list = document.getElementById("sharedFilesList");
 
-        if (!files || files.length === 0) {
-            list.innerHTML = '<div class="shared-files-empty">No files shared yet.</div>';
-            return;
-        }
+    if (!list) return;
 
-        list.innerHTML = files.map(function (file) {
+    if (!files || files.length === 0) {
+        list.innerHTML = '<div class="shared-files-empty">No files shared yet.</div>';
+        return;
+    }
 
-            const thumb = file.type === "image"
-                ? `<img src="${file.url}" class="shared-file-thumb" alt="">`
-                : `<span class="shared-file-icon">📄</span>`;
+    list.innerHTML = files.map(function (file) {
 
-            return `
+        const thumb = file.type === "image"
+            ? `<img src="${file.url}" class="shared-file-thumb" alt="">`
+            : `<span class="shared-file-icon">📄</span>`;
+
+        return `
                 <a href="${file.url}" target="_blank" class="shared-file-item">
                     ${thumb}
                     <span class="shared-file-name">${file.filename}</span>
                 </a>
             `;
 
-        }).join("");
+    }).join("");
+}
+
+async function fetchMessages() {
+
+    try {
+
+        const response = await fetch("/api/messages");
+
+        if (!response.ok) return;
+
+        const data = await response.json();
+
+        // Ignore stale reads: Cloudinary can briefly return an
+        // older version right after a save. Never let a poll
+        // shrink the chat - only grow or stay the same.
+        if (data.messages.length < lastMessageCount) {
+            console.log("Ignored stale chat read");
+            return;
+        }
+
+        renderMessages(data.messages);
+        renderSharedFiles(data.shared_files);
+
+        scrollChatToBottom();
+
+    } catch (error) {
+
+        console.log("Chat fetch error:", error);
+
     }
+}
 
-    async function fetchMessages() {
+chatForm.addEventListener("submit", async function (event) {
 
-        try {
+    event.preventDefault();
 
-            const response = await fetch("/api/messages");
+    const text = chatInput.value.trim();
 
-            if (!response.ok) return;
+    if (!text) return;
 
-            const data = await response.json();
+    chatInput.value = "";
 
-            // Ignore stale reads: Cloudinary can briefly return an
-            // older version right after a save. Never let a poll
-            // shrink the chat - only grow or stay the same.
-            if (data.messages.length < lastMessageCount) {
-                console.log("Ignored stale chat read");
-                return;
-            }
+    try {
 
+        const response = await fetch("/api/send-message", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ text: text })
+        });
+
+        const data = await response.json();
+
+        if (data.messages) {
             renderMessages(data.messages);
             renderSharedFiles(data.shared_files);
-
-            scrollChatToBottom();
-
-        } catch (error) {
-
-            console.log("Chat fetch error:", error);
-
+            scrollChatToBottom(true);
         }
+
+    } catch (error) {
+
+        console.log("Chat send error:", error);
+
     }
+});
 
-    chatForm.addEventListener("submit", async function (event) {
+// =========================
+// UPLOAD FILE / IMAGE ATTACHMENT
+// =========================
 
-        event.preventDefault();
+async function uploadChatFile(file) {
 
-        const text = chatInput.value.trim();
+    if (!file) return;
 
-        if (!text) return;
+    const formData = new FormData();
+    formData.append("file", file);
 
-        chatInput.value = "";
+    try {
 
-        try {
+        const response = await fetch("/api/send-file", {
+            method: "POST",
+            body: formData
+        });
 
-            const response = await fetch("/api/send-message", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ text: text })
-            });
+        const data = await response.json();
 
-            const data = await response.json();
-
-            if (data.messages) {
-                renderMessages(data.messages);
-                renderSharedFiles(data.shared_files);
-                scrollChatToBottom(true);
-            }
-
-        } catch (error) {
-
-            console.log("Chat send error:", error);
-
-        }
-    });
-
-    // =========================
-    // UPLOAD FILE / IMAGE ATTACHMENT
-    // =========================
-
-    async function uploadChatFile(file) {
-
-        if (!file) return;
-
-        const formData = new FormData();
-        formData.append("file", file);
-
-        try {
-
-            const response = await fetch("/api/send-file", {
-                method: "POST",
-                body: formData
-            });
-
-            const data = await response.json();
-
-            if (data.messages) {
-                renderMessages(data.messages);
-                renderSharedFiles(data.shared_files);
-                scrollChatToBottom(true);
-            } else if (data.error) {
-                alert(data.error);
-            }
-
-        } catch (error) {
-
-            console.log("File upload error:", error);
-            alert("Upload failed. Please try again.");
-
-        }
-    }
-
-    window.uploadChatFile = uploadChatFile;
-    window.scrollChatToBottom = scrollChatToBottom;
-
-    // Initial scroll to bottom on page load
-    scrollChatToBottom(true);
-
-    // Auto-refresh every 1.5 seconds
-    setInterval(fetchMessages, 1500);
-
-    // Also refresh immediately whenever the tab becomes active again
-    document.addEventListener("visibilitychange", function () {
-        if (!document.hidden) {
-            fetchMessages();
-        }
-    });
-
-    // =========================
-    // DELETE ONE MESSAGE
-    // =========================
-
-    async function deleteMessage(id) {
-
-        try {
-
-            const response = await fetch("/api/delete-message", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: id })
-            });
-
-            const data = await response.json();
-
-            if (data.messages) {
-                renderMessages(data.messages);
-                renderSharedFiles(data.shared_files);
-            }
-
-        } catch (error) {
-
-            console.log("Delete message error:", error);
-
-        }
-    }
-
-    window.deleteMessage = deleteMessage;
-
-
-    // =========================
-    // CLEAR ENTIRE CHAT
-    // =========================
-
-    async function clearChat() {
-
-        const confirmClear = confirm("Clear the entire chat? This cannot be undone.");
-
-        if (!confirmClear) return;
-
-        try {
-
-            const response = await fetch("/api/clear-chat", {
-                method: "POST"
-            });
-
-            const data = await response.json();
-
+        if (data.messages) {
             renderMessages(data.messages);
             renderSharedFiles(data.shared_files);
-
-        } catch (error) {
-
-            console.log("Clear chat error:", error);
-
+            scrollChatToBottom(true);
+        } else if (data.error) {
+            alert(data.error);
         }
-    }
 
-    window.clearChat = clearChat;
+    } catch (error) {
+
+        console.log("File upload error:", error);
+        alert("Upload failed. Please try again.");
+
+    }
+}
+
+window.uploadChatFile = uploadChatFile;
+window.scrollChatToBottom = scrollChatToBottom;
+
+// Initial scroll to bottom on page load
+scrollChatToBottom(true);
+
+// Auto-refresh every 1.5 seconds
+setInterval(fetchMessages, 1500);
+
+// Also refresh immediately whenever the tab becomes active again
+document.addEventListener("visibilitychange", function () {
+    if (!document.hidden) {
+        fetchMessages();
+    }
+});
+
+// =========================
+// DELETE ONE MESSAGE
+// =========================
+
+async function deleteMessage(id) {
+
+    try {
+
+        const response = await fetch("/api/delete-message", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: id })
+        });
+
+        const data = await response.json();
+
+        if (data.messages) {
+            renderMessages(data.messages);
+            renderSharedFiles(data.shared_files);
+        }
+
+    } catch (error) {
+
+        console.log("Delete message error:", error);
+
+    }
+}
+
+window.deleteMessage = deleteMessage;
+
+
+// =========================
+// CLEAR ENTIRE CHAT
+// =========================
+
+async function clearChat() {
+
+    const confirmClear = confirm("Clear the entire chat? This cannot be undone.");
+
+    if (!confirmClear) return;
+
+    try {
+
+        const response = await fetch("/api/clear-chat", {
+            method: "POST"
+        });
+
+        const data = await response.json();
+
+        renderMessages(data.messages);
+        renderSharedFiles(data.shared_files);
+
+    } catch (error) {
+
+        console.log("Clear chat error:", error);
+
+    }
+}
+
+window.clearChat = clearChat;
 
 }
 
@@ -739,3 +877,140 @@ async function toggleFavorite(button, publicId) {
 
     }
 }
+// =========================
+// AVATAR PICKER
+// =========================
+
+// =========================
+// READY PLAYER ME — 3D AVATAR CREATOR
+// =========================
+
+// =========================
+// AVATURN — 3D AVATAR CREATOR
+// =========================
+
+const AVATURN_SUBDOMAIN = "privatevault";
+
+let avaturnSdk = null;
+let avaturnInitialized = false;
+
+function openAvatarPicker() {
+
+    const modal = document.getElementById("avatarModal");
+    const container = document.getElementById("avaturn-sdk-container");
+
+    modal.classList.add("show");
+
+    if (avaturnInitialized) return; // already loaded once, don't re-init
+
+    avaturnSdk = new window.AvaturnSDK();
+
+    avaturnSdk.init(container, {
+        url: `https://${AVATURN_SUBDOMAIN}.avaturn.dev`
+    }).then(function () {
+
+        avaturnInitialized = true;
+
+        avaturnSdk.on("export", async function (data) {
+
+            const avatarUrl = data.url;
+
+            if (!avatarUrl) return;
+
+            try {
+
+                const response = await fetch("/api/set-avatar", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ avatar_url: avatarUrl })
+                });
+
+                const result = await response.json();
+
+                if (result.avatar_url) {
+                    loadAvatarIntoButton(result.avatar_url);
+                    closeAvatarPicker();
+                }
+
+            } catch (error) {
+                console.log("Set avatar error:", error);
+            }
+        });
+
+    });
+}
+
+function closeAvatarPicker() {
+    document.getElementById("avatarModal").classList.remove("show");
+}
+// =========================
+// 3D AVATAR VIEWER (renders in the header button)
+// =========================
+
+function loadAvatarIntoButton(glbUrl) {
+
+    const canvas = document.getElementById("avatarBtnCanvas");
+    const defaultIcon = document.getElementById("avatarBtnDefault");
+
+    if (!canvas || !glbUrl) return;
+
+    if (defaultIcon) defaultIcon.style.display = "none";
+
+    const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+    renderer.setSize(38, 38);
+    renderer.setPixelRatio(window.devicePixelRatio);
+
+    const scene = new THREE.Scene();
+
+    const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
+    camera.position.set(0, 1.6, 2.2);
+
+    const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
+    scene.add(light);
+
+    const loader = new THREE.GLTFLoader();
+
+    loader.load(glbUrl, function (gltf) {
+
+        const model = gltf.scene;
+        model.position.y = -1.6;
+        scene.add(model);
+
+        function animate() {
+            model.rotation.y += 0.01;
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+
+    }, undefined, function (error) {
+        console.log("Avatar load error:", error);
+    });
+}
+
+// Load the saved avatar on page load, if one exists
+document.addEventListener("DOMContentLoaded", function () {
+
+    const btn = document.getElementById("avatarBtn");
+
+    if (btn) {
+
+        const savedUrl = btn.getAttribute("data-avatar-url");
+
+        if (savedUrl) {
+            loadAvatarIntoButton(savedUrl);
+        }
+    }
+
+});
+
+document.addEventListener("click", function (event) {
+
+    const modal = document.getElementById("avatarModal");
+
+    if (modal && event.target === modal) {
+        closeAvatarPicker();
+    }
+
+});

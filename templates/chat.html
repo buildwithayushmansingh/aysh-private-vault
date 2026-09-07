@@ -344,7 +344,21 @@
     <script>
         const CURRENT_IDENTITY = "{{ identity_name }}";
     </script>
+<div class="avatar-modal" id="avatarModal">
 
+    <div class="avatar-modal-inner">
+
+        <div class="avatar-modal-title">Choose your avatar</div>
+
+        <div class="avatar-grid" id="avatarGrid"></div>
+
+        <button type="button" class="avatar-modal-close" onclick="closeAvatarPicker()">
+            Cancel
+        </button>
+
+    </div>
+
+</div>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 
 </body>

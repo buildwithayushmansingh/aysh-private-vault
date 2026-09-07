@@ -1367,6 +1367,12 @@ body {
     color: #0a0a0a;
 
     background: var(--accent);
+    background-size: cover;
+    background-position: center;
+}
+
+.chat-avatar.has-avatar .chat-avatar-fallback {
+    display: none;
 }
 
 .chat-bubble-row.mine .chat-avatar {
@@ -2758,6 +2764,7 @@ body {
     border-radius: 30px;
     padding: 12px 26px;
 }
+
 /* =========================
    FAVORITE HEART ICON
 ========================= */
@@ -2810,7 +2817,180 @@ body {
 }
 
 @keyframes favoritePulse {
-    0% { transform: scale(1); }
-    40% { transform: scale(1.4); }
-    100% { transform: scale(1); }
+    0% {
+        transform: scale(1);
+    }
+
+    40% {
+        transform: scale(1.4);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* =========================
+   AVATAR BUTTON
+========================= */
+
+.avatar-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: 1px solid var(--border-color-strong);
+    background: var(--hover-fill);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    transition: 0.25s ease;
+}
+
+.avatar-btn:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 14px var(--accent-glow);
+}
+
+.avatar-btn img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.avatar-btn-default {
+    font-size: 16px;
+    color: var(--text-muted);
+}
+
+
+/* =========================
+   AVATAR PICKER MODAL
+========================= */
+
+.avatar-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 6000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(6px);
+}
+
+.avatar-modal.show {
+    display: flex;
+}
+
+.avatar-modal-inner {
+    width: min(90vw, 460px);
+    padding: 28px;
+    border-radius: 20px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color-strong);
+    box-shadow: 0 0 40px var(--accent-glow);
+}
+
+.avatar-modal-title {
+    font-size: 15px;
+    font-weight: bold;
+    color: var(--text-color);
+    margin-bottom: 18px;
+    text-align: center;
+}
+
+.avatar-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.avatar-option {
+    aspect-ratio: 1;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid var(--border-color-strong);
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.avatar-option img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.avatar-option:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 16px var(--accent-glow);
+    transform: scale(1.05);
+}
+
+.avatar-option.selected {
+    border-color: var(--accent);
+    box-shadow: 0 0 16px var(--accent-glow);
+}
+
+.avatar-modal-close {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border-color-strong);
+    border-radius: 10px;
+    background: var(--hover-fill);
+    color: var(--text-muted);
+    font-size: 13px;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.avatar-modal-close:hover {
+    color: var(--text-color);
+}
+
+/* =========================
+   3D AVATAR BUTTON
+========================= */
+
+.avatar-btn {
+    position: relative;
+}
+
+#avatarBtnCanvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.avatar-btn-default {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 16px;
+    color: var(--text-muted);
+}
+
+
+/* =========================
+   READY PLAYER ME MODAL
+========================= */
+
+.rpm-modal-inner {
+    width: min(94vw, 700px);
+    padding: 16px;
+}
+
+.rpm-frame {
+    width: 100%;
+    height: 60vh;
+    min-height: 420px;
+
+    border: 1px solid var(--border-color-strong);
+    border-radius: 14px;
+
+    margin-bottom: 14px;
 }
