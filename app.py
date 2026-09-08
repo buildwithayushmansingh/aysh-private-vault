@@ -767,7 +767,26 @@ def toggle_favorite():
 
     return jsonify({"is_favorite": is_favorite, "favorites": favorites})
 
+@app.route("/api/set-avatar", methods=["POST"])
+def set_avatar():
 
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    data = request.get_json(silent=True) or {}
+
+    avatar_url = data.get("avatar_url")
+
+    if not avatar_url:
+        return jsonify({"error": "Missing avatar_url"}), 400
+
+    avatars = load_avatars()
+
+    avatars[session["identity_name"]] = avatar_url
+
+    save_avatars(avatars)
+
+    return jsonify({"avatar_url": avatar_url})
 # =========================================================
 # CHAT - SEND FILE / IMAGE ATTACHMENT
 # =========================================================

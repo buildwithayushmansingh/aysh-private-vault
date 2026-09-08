@@ -191,6 +191,8 @@ if (chatWindow && chatForm && chatInput) {
             const res = await fetch("/api/avatars");
             const data = await res.json();
             avatarUrls = data.avatars || {};
+            console.log("Loaded avatarUrls:", avatarUrls);
+            fillAvatarThumbs();
         } catch (e) {
             console.log("Avatar list fetch error:", e);
         }
@@ -257,9 +259,16 @@ if (chatWindow && chatForm && chatInput) {
             uniqueSenders.add(el.getAttribute("data-sender"));
         });
 
+        console.log("Unique senders found in chat:", Array.from(uniqueSenders));
+        console.log("Current avatarUrls map:", avatarUrls);
+
         uniqueSenders.forEach(function (sender) {
 
+            console.log("Looking up avatar for sender:", JSON.stringify(sender), "-> found:", avatarUrls[sender]);
+
             generateAvatarThumb(sender, function (dataUrl) {
+
+                console.log("generateAvatarThumb callback for", sender, "-> dataUrl is", dataUrl ? "SET" : "NULL");
 
                 if (!dataUrl) return;
 
@@ -270,7 +279,6 @@ if (chatWindow && chatForm && chatInput) {
             });
         });
     }
-
     loadAvatarUrls();
 
     const scrollBtn = document.getElementById("scrollToBottomBtn");
@@ -425,212 +433,212 @@ if (chatWindow && chatForm && chatInput) {
         lastMessageCount = messages.length;
     }
 
-    
 
-function renderSharedFiles(files) {
 
-    const list = document.getElementById("sharedFilesList");
+    function renderSharedFiles(files) {
 
-    if (!list) return;
+        const list = document.getElementById("sharedFilesList");
 
-    if (!files || files.length === 0) {
-        list.innerHTML = '<div class="shared-files-empty">No files shared yet.</div>';
-        return;
-    }
+        if (!list) return;
 
-    list.innerHTML = files.map(function (file) {
+        if (!files || files.length === 0) {
+            list.innerHTML = '<div class="shared-files-empty">No files shared yet.</div>';
+            return;
+        }
 
-        const thumb = file.type === "image"
-            ? `<img src="${file.url}" class="shared-file-thumb" alt="">`
-            : `<span class="shared-file-icon">📄</span>`;
+        list.innerHTML = files.map(function (file) {
 
-        return `
+            const thumb = file.type === "image"
+                ? `<img src="${file.url}" class="shared-file-thumb" alt="">`
+                : `<span class="shared-file-icon">📄</span>`;
+
+            return `
                 <a href="${file.url}" target="_blank" class="shared-file-item">
                     ${thumb}
                     <span class="shared-file-name">${file.filename}</span>
                 </a>
             `;
 
-    }).join("");
-}
-
-async function fetchMessages() {
-
-    try {
-
-        const response = await fetch("/api/messages");
-
-        if (!response.ok) return;
-
-        const data = await response.json();
-
-        // Ignore stale reads: Cloudinary can briefly return an
-        // older version right after a save. Never let a poll
-        // shrink the chat - only grow or stay the same.
-        if (data.messages.length < lastMessageCount) {
-            console.log("Ignored stale chat read");
-            return;
-        }
-
-        renderMessages(data.messages);
-        renderSharedFiles(data.shared_files);
-
-        scrollChatToBottom();
-
-    } catch (error) {
-
-        console.log("Chat fetch error:", error);
-
+        }).join("");
     }
-}
 
-chatForm.addEventListener("submit", async function (event) {
+    async function fetchMessages() {
 
-    event.preventDefault();
+        try {
 
-    const text = chatInput.value.trim();
+            const response = await fetch("/api/messages");
 
-    if (!text) return;
+            if (!response.ok) return;
 
-    chatInput.value = "";
+            const data = await response.json();
 
-    try {
+            // Ignore stale reads: Cloudinary can briefly return an
+            // older version right after a save. Never let a poll
+            // shrink the chat - only grow or stay the same.
+            if (data.messages.length < lastMessageCount) {
+                console.log("Ignored stale chat read");
+                return;
+            }
 
-        const response = await fetch("/api/send-message", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ text: text })
-        });
-
-        const data = await response.json();
-
-        if (data.messages) {
             renderMessages(data.messages);
             renderSharedFiles(data.shared_files);
-            scrollChatToBottom(true);
+
+            scrollChatToBottom();
+
+        } catch (error) {
+
+            console.log("Chat fetch error:", error);
+
         }
-
-    } catch (error) {
-
-        console.log("Chat send error:", error);
-
     }
-});
 
-// =========================
-// UPLOAD FILE / IMAGE ATTACHMENT
-// =========================
+    chatForm.addEventListener("submit", async function (event) {
 
-async function uploadChatFile(file) {
+        event.preventDefault();
 
-    if (!file) return;
+        const text = chatInput.value.trim();
 
-    const formData = new FormData();
-    formData.append("file", file);
+        if (!text) return;
 
-    try {
+        chatInput.value = "";
 
-        const response = await fetch("/api/send-file", {
-            method: "POST",
-            body: formData
-        });
+        try {
 
-        const data = await response.json();
+            const response = await fetch("/api/send-message", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ text: text })
+            });
 
-        if (data.messages) {
+            const data = await response.json();
+
+            if (data.messages) {
+                renderMessages(data.messages);
+                renderSharedFiles(data.shared_files);
+                scrollChatToBottom(true);
+            }
+
+        } catch (error) {
+
+            console.log("Chat send error:", error);
+
+        }
+    });
+
+    // =========================
+    // UPLOAD FILE / IMAGE ATTACHMENT
+    // =========================
+
+    async function uploadChatFile(file) {
+
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+
+            const response = await fetch("/api/send-file", {
+                method: "POST",
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (data.messages) {
+                renderMessages(data.messages);
+                renderSharedFiles(data.shared_files);
+                scrollChatToBottom(true);
+            } else if (data.error) {
+                alert(data.error);
+            }
+
+        } catch (error) {
+
+            console.log("File upload error:", error);
+            alert("Upload failed. Please try again.");
+
+        }
+    }
+
+    window.uploadChatFile = uploadChatFile;
+    window.scrollChatToBottom = scrollChatToBottom;
+
+    // Initial scroll to bottom on page load
+    scrollChatToBottom(true);
+
+    // Auto-refresh every 1.5 seconds
+    setInterval(fetchMessages, 1500);
+
+    // Also refresh immediately whenever the tab becomes active again
+    document.addEventListener("visibilitychange", function () {
+        if (!document.hidden) {
+            fetchMessages();
+        }
+    });
+
+    // =========================
+    // DELETE ONE MESSAGE
+    // =========================
+
+    async function deleteMessage(id) {
+
+        try {
+
+            const response = await fetch("/api/delete-message", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: id })
+            });
+
+            const data = await response.json();
+
+            if (data.messages) {
+                renderMessages(data.messages);
+                renderSharedFiles(data.shared_files);
+            }
+
+        } catch (error) {
+
+            console.log("Delete message error:", error);
+
+        }
+    }
+
+    window.deleteMessage = deleteMessage;
+
+
+    // =========================
+    // CLEAR ENTIRE CHAT
+    // =========================
+
+    async function clearChat() {
+
+        const confirmClear = confirm("Clear the entire chat? This cannot be undone.");
+
+        if (!confirmClear) return;
+
+        try {
+
+            const response = await fetch("/api/clear-chat", {
+                method: "POST"
+            });
+
+            const data = await response.json();
+
             renderMessages(data.messages);
             renderSharedFiles(data.shared_files);
-            scrollChatToBottom(true);
-        } else if (data.error) {
-            alert(data.error);
+
+        } catch (error) {
+
+            console.log("Clear chat error:", error);
+
         }
-
-    } catch (error) {
-
-        console.log("File upload error:", error);
-        alert("Upload failed. Please try again.");
-
     }
-}
 
-window.uploadChatFile = uploadChatFile;
-window.scrollChatToBottom = scrollChatToBottom;
-
-// Initial scroll to bottom on page load
-scrollChatToBottom(true);
-
-// Auto-refresh every 1.5 seconds
-setInterval(fetchMessages, 1500);
-
-// Also refresh immediately whenever the tab becomes active again
-document.addEventListener("visibilitychange", function () {
-    if (!document.hidden) {
-        fetchMessages();
-    }
-});
-
-// =========================
-// DELETE ONE MESSAGE
-// =========================
-
-async function deleteMessage(id) {
-
-    try {
-
-        const response = await fetch("/api/delete-message", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: id })
-        });
-
-        const data = await response.json();
-
-        if (data.messages) {
-            renderMessages(data.messages);
-            renderSharedFiles(data.shared_files);
-        }
-
-    } catch (error) {
-
-        console.log("Delete message error:", error);
-
-    }
-}
-
-window.deleteMessage = deleteMessage;
-
-
-// =========================
-// CLEAR ENTIRE CHAT
-// =========================
-
-async function clearChat() {
-
-    const confirmClear = confirm("Clear the entire chat? This cannot be undone.");
-
-    if (!confirmClear) return;
-
-    try {
-
-        const response = await fetch("/api/clear-chat", {
-            method: "POST"
-        });
-
-        const data = await response.json();
-
-        renderMessages(data.messages);
-        renderSharedFiles(data.shared_files);
-
-    } catch (error) {
-
-        console.log("Clear chat error:", error);
-
-    }
-}
-
-window.clearChat = clearChat;
+    window.clearChat = clearChat;
 
 }
 
@@ -913,9 +921,16 @@ function openAvatarPicker() {
 
         avaturnSdk.on("export", async function (data) {
 
-            const avatarUrl = data.url;
+            console.log("AVATURN EXPORT EVENT FIRED:", data);
 
-            if (!avatarUrl) return;
+            const avatarUrl = data.url || (data.data && data.data.url);
+
+            console.log("Resolved avatar URL:", avatarUrl);
+
+            if (!avatarUrl) {
+                alert("Avatar export succeeded but no URL was found - check console for the data shape.");
+                return;
+            }
 
             try {
 
@@ -963,9 +978,8 @@ function loadAvatarIntoButton(glbUrl) {
     const scene = new THREE.Scene();
 
     const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
-    camera.position.set(0, 1.6, 2.2);
 
-    const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
+    const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.4);
     scene.add(light);
 
     const loader = new THREE.GLTFLoader();
@@ -973,8 +987,18 @@ function loadAvatarIntoButton(glbUrl) {
     loader.load(glbUrl, function (gltf) {
 
         const model = gltf.scene;
-        model.position.y = -1.6;
         scene.add(model);
+
+        const box = new THREE.Box3().setFromObject(model);
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+
+        // Frame a head-and-shoulders crop, like a real profile icon,
+        // instead of trying to fit the whole body into a tiny circle.
+        const headY = box.max.y - size.y * 0.12;
+
+        camera.position.set(center.x, headY, center.z + size.z * 2.2 + 0.35);
+        camera.lookAt(center.x, headY, center.z);
 
         function animate() {
             model.rotation.y += 0.01;
@@ -985,7 +1009,7 @@ function loadAvatarIntoButton(glbUrl) {
         animate();
 
     }, undefined, function (error) {
-        console.log("Avatar load error:", error);
+        console.log("Avatar load ERROR:", error);
     });
 }
 
