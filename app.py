@@ -75,7 +75,313 @@ FAVORITES_PUBLIC_ID = "private-vault-meta/favorites"
 
 AVATARS_PUBLIC_ID = "private-vault-meta/avatars"
 
+# =========================================================
+# NOTES CONSTANTS (add near your other Cloudinary constants)
+# =========================================================
 
+NOTES_PUBLIC_ID = "private-vault-meta/notes"
+NOTES_ATTACHMENTS_FOLDER = "private-vault-notes"
+
+
+# =========================================================
+# NOTES STORAGE (add near your CHAT_CACHE section)
+# =========================================================
+
+NOTES_CACHE = None
+NOTES_LOCK = threading.Lock()
+
+
+def load_notes():
+
+    global NOTES_CACHE
+
+    with NOTES_LOCK:
+
+        if NOTES_CACHE is None:
+            NOTES_CACHE = load_json_store(NOTES_PUBLIC_ID)
+
+        return list(NOTES_CACHE)
+
+
+def save_notes(notes):
+
+    global NOTES_CACHE
+
+    with NOTES_LOCK:
+        NOTES_CACHE = list(notes)
+
+    threading.Thread(target=save_json_store, args=(NOTES_PUBLIC_ID, notes)).start()
+
+
+def get_visible_notes(identity_name):
+
+    notes = load_notes()
+
+    return [
+        n for n in notes
+        if n.get("visibility") == "shared" or n.get("owner") == identity_name
+    ]
+
+
+def can_modify_note(note, identity_name):
+
+    if note.get("visibility") == "shared":
+        return True
+
+    return note.get("owner") == identity_name
+
+
+def add_note(title, content, category, tags, visibility, owner, attachment=None):
+
+    notes = load_notes()
+
+    now = datetime.now().strftime("%d %b, %I:%M %p")
+
+    note = {
+        "id": secrets.token_hex(6),
+        "title": title,
+        "content": content,
+        "category": category,
+        "tags": tags,
+        "visibility": visibility,
+        "owner": owner,
+        "pinned": False,
+        "favorite": False,
+        "locked": False,
+        "attachment": attachment,
+        "created_at": now,
+        "updated_at": now
+    }
+
+    notes.append(note)
+
+    save_notes(notes)
+
+    return note
+
+
+def find_note(notes, note_id):
+
+    for n in notes:
+        if n.get("id") == note_id:
+            return n
+
+    return None
+
+
+# =========================================================
+# NOTES PAGE
+# =========================================================
+
+@app.route("/notes")
+def notes_page():
+
+    if not session.get("logged_in"):
+        return redirect("/")
+
+    current_avatar = get_current_avatar()
+
+    return render_template(
+        "notes.html",
+        display_name=session.get("display_name", ""),
+        identity_name=session.get("identity_name", ""),
+        current_avatar=current_avatar
+    )
+
+
+# =========================================================
+# NOTES API - LIST
+# =========================================================
+
+@app.route("/api/notes")
+def api_get_notes():
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    notes = get_visible_notes(identity_name)
+
+    return jsonify({"notes": notes})
+
+
+# =========================================================
+# NOTES API - CREATE
+# =========================================================
+
+@app.route("/api/notes", methods=["POST"])
+def api_create_note():
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    data = request.get_json(silent=True) or {}
+
+    title = (data.get("title") or "").strip()
+    content = (data.get("content") or "").strip()
+    category = data.get("category", "us-and-me")
+    tags = data.get("tags", [])
+    visibility = data.get("visibility", "shared")
+    attachment = data.get("attachment")
+
+    if not title and not content:
+        return jsonify({"error": "Note needs a title or content"}), 400
+
+    if visibility not in ("shared", "only-me"):
+        visibility = "shared"
+
+    owner = session.get("identity_name", "Someone")
+
+    note = add_note(title, content, category, tags, visibility, owner, attachment)
+
+    return jsonify({"note": note})
+
+
+# =========================================================
+# NOTES API - UPDATE
+# =========================================================
+
+@app.route("/api/notes/<note_id>", methods=["PUT"])
+def api_update_note(note_id):
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    notes = load_notes()
+
+    note = find_note(notes, note_id)
+
+    if not note:
+        return jsonify({"error": "Note not found"}), 404
+
+    if not can_modify_note(note, identity_name):
+        return jsonify({"error": "Not allowed"}), 403
+
+    data = request.get_json(silent=True) or {}
+
+    if "title" in data:
+        note["title"] = (data.get("title") or "").strip()
+
+    if "content" in data:
+        note["content"] = (data.get("content") or "").strip()
+
+    if "tags" in data:
+        note["tags"] = data.get("tags") or []
+
+    if "visibility" in data and data["visibility"] in ("shared", "only-me"):
+        note["visibility"] = data["visibility"]
+
+    note["updated_at"] = datetime.now().strftime("%d %b, %I:%M %p")
+
+    save_notes(notes)
+
+    return jsonify({"note": note})
+
+
+# =========================================================
+# NOTES API - TOGGLE (pinned / favorite / locked)
+# =========================================================
+
+@app.route("/api/notes/<note_id>/toggle", methods=["POST"])
+def api_toggle_note(note_id):
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    data = request.get_json(silent=True) or {}
+
+    field = data.get("field")
+
+    if field not in ("pinned", "favorite", "locked"):
+        return jsonify({"error": "Invalid field"}), 400
+
+    notes = load_notes()
+
+    note = find_note(notes, note_id)
+
+    if not note:
+        return jsonify({"error": "Note not found"}), 404
+
+    if not can_modify_note(note, identity_name):
+        return jsonify({"error": "Not allowed"}), 403
+
+    note[field] = not note.get(field, False)
+
+    save_notes(notes)
+
+    return jsonify({"note": note})
+
+
+# =========================================================
+# NOTES API - DELETE
+# =========================================================
+
+@app.route("/api/notes/<note_id>", methods=["DELETE"])
+def api_delete_note(note_id):
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    notes = load_notes()
+
+    note = find_note(notes, note_id)
+
+    if not note:
+        return jsonify({"error": "Note not found"}), 404
+
+    if not can_modify_note(note, identity_name):
+        return jsonify({"error": "Not allowed"}), 403
+
+    notes = [n for n in notes if n.get("id") != note_id]
+
+    save_notes(notes)
+
+    return jsonify({"success": True})
+
+
+# =========================================================
+# NOTES API - UPLOAD ATTACHMENT
+# =========================================================
+
+@app.route("/api/notes/upload-attachment", methods=["POST"])
+def api_notes_upload_attachment():
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    uploaded_file = request.files.get("file")
+
+    if not uploaded_file or not uploaded_file.filename:
+        return jsonify({"error": "No file provided"}), 400
+
+    is_image = uploaded_file.mimetype.startswith("image/")
+
+    try:
+
+        result = cloudinary.uploader.upload(
+            uploaded_file,
+            folder=NOTES_ATTACHMENTS_FOLDER,
+            resource_type="image" if is_image else "raw"
+        )
+
+        attachment = {
+            "url": result.get("secure_url"),
+            "type": "image" if is_image else "file",
+            "filename": uploaded_file.filename
+        }
+
+        return jsonify({"attachment": attachment})
+
+    except Exception as e:
+
+        return jsonify({"error": f"Upload failed: {e}"}), 500
 # =========================================================
 # ACTIVE SESSIONS (IN-MEMORY)
 # =========================================================
@@ -321,7 +627,7 @@ def check_session():
 def login():
 
     if session.get("logged_in"):
-        return redirect("/home")
+        return redirect("/dashboard")
 
     return render_template("login.html")
 
@@ -376,7 +682,7 @@ def login_check():
     display_name = request.form.get("display_name", "").strip()
 
     if perform_login(username, password, display_name, request):
-        return redirect("/home")
+        return redirect("/dashboard")
 
     return "Wrong Username or Password!"
 
@@ -395,7 +701,29 @@ def api_login():
 
     return jsonify({"success": False, "error": "Wrong username or password"}), 401
 
+# =========================================================
+# DASHBOARD (LANDING PAGE AFTER LOGIN)
+# =========================================================
 
+@app.route("/dashboard")
+def dashboard():
+
+    if not session.get("logged_in"):
+        return redirect("/")
+
+    entries = load_activity_log()
+
+    recent_activity = list(reversed(entries))[:5]
+
+    current_avatar = get_current_avatar()
+
+    return render_template(
+        "dashboard.html",
+        recent_activity=recent_activity,
+        display_name=session.get("display_name", ""),
+        identity_name=session.get("identity_name", ""),
+        current_avatar=current_avatar
+    )
 # =========================================================
 # HOME / GALLERY
 # =========================================================

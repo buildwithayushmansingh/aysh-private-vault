@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Our Private Notes</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+
+</head>
+
+<body class="vault-page">
+
+    <header class="vault-dock">
+
+        <div class="vault-dock-inner">
+
+            <a href="/dashboard" class="vault-logo" style="text-decoration:none;">
+                <span class="vault-logo-dot"></span>
+                VAULT
+            </a>
+
+            <div class="vault-dock-actions">
+
+                <button
+                    class="avatar-btn"
+                    onclick="openAvatarPicker()"
+                    type="button"
+                    id="avatarBtn"
+                    title="Change avatar"
+                    data-avatar-url="{{ current_avatar }}"
+                >
+                    <canvas id="avatarBtnCanvas"></canvas>
+                    {% if not current_avatar %}
+                    <span class="avatar-btn-default" id="avatarBtnDefault">👤</span>
+                    {% endif %}
+                </button>
+
+                <button
+                    class="dock-icon-btn"
+                    onclick="toggleTheme()"
+                    id="themeToggleBtn"
+                    type="button"
+                    title="Toggle theme"
+                >
+                    🖥
+                </button>
+
+                <a href="/logout" class="dock-icon-btn" title="Logout">⏻</a>
+
+            </div>
+
+        </div>
+
+    </header>
+
+
+    <main class="notes-wrap">
+
+        <!-- =========================
+             NOTES HEADER
+        ========================= -->
+
+        <div class="notes-header">
+
+            <div>
+                <button class="notes-back-btn" onclick="window.location.href='/dashboard'">← Back</button>
+                <h1>Our Private Notes</h1>
+                <p class="notes-subtitle">Little pieces of our story.</p>
+            </div>
+
+            <div class="notes-header-actions">
+
+                <input
+                    type="text"
+                    id="notesSearchInput"
+                    class="notes-search-input"
+                    placeholder="🔍 Search your memories..."
+                >
+
+                <button class="notes-new-btn" onclick="openNewNoteModal()">+ New</button>
+
+            </div>
+
+        </div>
+
+
+        <!-- =========================
+             CATEGORY CARDS
+        ========================= -->
+
+        <div class="notes-category-grid">
+
+            <div class="notes-category-card active" data-category="us-and-me" onclick="setNotesCategory('us-and-me', this)">
+                <span class="notes-category-icon">💭</span>
+                <span class="notes-category-label">Us & Me</span>
+            </div>
+
+            <div class="notes-category-card notes-category-soon">
+                <span class="notes-category-icon">📔</span>
+                <span class="notes-category-label">Our Journal</span>
+                <span class="notes-soon-tag">Coming soon</span>
+            </div>
+
+            <div class="notes-category-card notes-category-soon">
+                <span class="notes-category-icon">💌</span>
+                <span class="notes-category-label">Letters</span>
+                <span class="notes-soon-tag">Coming soon</span>
+            </div>
+
+            <div class="notes-category-card notes-category-soon">
+                <span class="notes-category-icon">📅</span>
+                <span class="notes-category-label">Important Dates</span>
+                <span class="notes-soon-tag">Coming soon</span>
+            </div>
+
+            <div class="notes-category-card notes-category-soon">
+                <span class="notes-category-icon">🎯</span>
+                <span class="notes-category-label">Our Plans</span>
+                <span class="notes-soon-tag">Coming soon</span>
+            </div>
+
+            <div class="notes-category-card notes-category-soon">
+                <span class="notes-category-icon">🎁</span>
+                <span class="notes-category-label">Wishlist</span>
+                <span class="notes-soon-tag">Coming soon</span>
+            </div>
+
+            <div class="notes-category-card notes-category-soon">
+                <span class="notes-category-icon">🌍</span>
+                <span class="notes-category-label">Our Places</span>
+                <span class="notes-soon-tag">Coming soon</span>
+            </div>
+
+            <div class="notes-category-card notes-category-soon">
+                <span class="notes-category-icon">✨</span>
+                <span class="notes-category-label">Little Things</span>
+                <span class="notes-soon-tag">Coming soon</span>
+            </div>
+
+        </div>
+
+
+        <!-- =========================
+             FILTERS
+        ========================= -->
+
+        <div class="notes-filter-row">
+
+            <button class="notes-filter-tab active" data-filter="all" onclick="setNotesFilter('all', this)">All</button>
+            <button class="notes-filter-tab" data-filter="shared" onclick="setNotesFilter('shared', this)">Shared</button>
+            <button class="notes-filter-tab" data-filter="only-me" onclick="setNotesFilter('only-me', this)">Only Me</button>
+            <button class="notes-filter-tab" data-filter="pinned" onclick="setNotesFilter('pinned', this)">Pinned</button>
+            <button class="notes-filter-tab" data-filter="favorite" onclick="setNotesFilter('favorite', this)">Favorites</button>
+            <button class="notes-filter-tab" data-filter="locked" onclick="setNotesFilter('locked', this)">Locked</button>
+
+        </div>
+
+
+        <!-- =========================
+             NOTES LIST
+        ========================= -->
+
+        <div class="notes-grid" id="notesGrid">
+            <div class="notes-empty">Loading your notes...</div>
+        </div>
+
+    </main>
+
+
+    <!-- =========================
+         NEW NOTE MODAL
+    ========================= -->
+
+    <div class="notes-modal" id="newNoteModal">
+
+        <div class="notes-modal-inner">
+
+            <div class="notes-modal-title">New Note</div>
+
+            <input type="text" id="noteTitleInput" class="notes-form-input" placeholder="Title">
+
+            <textarea id="noteContentInput" class="notes-form-textarea" placeholder="Write something..." rows="6"></textarea>
+
+            <input type="text" id="noteTagsInput" class="notes-form-input" placeholder="Tags (comma separated)">
+
+            <div class="notes-visibility-row">
+                <label><input type="radio" name="noteVisibility" value="shared" checked> Shared</label>
+                <label><input type="radio" name="noteVisibility" value="only-me"> Only Me</label>
+            </div>
+
+            <div class="notes-attachment-row">
+                <button type="button" class="notes-attach-btn" onclick="document.getElementById('noteAttachInput').click()">📎 Attach</button>
+                <input type="file" id="noteAttachInput" style="display:none;" onchange="handleNoteAttachment(this.files[0])">
+                <span id="noteAttachStatus"></span>
+            </div>
+
+            <div class="notes-modal-actions">
+                <button type="button" class="notes-modal-cancel" onclick="closeNewNoteModal()">Cancel</button>
+                <button type="button" class="notes-modal-save" onclick="submitNewNote()">Save Note</button>
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- =========================
+         NOTE VIEWER MODAL
+    ========================= -->
+
+    <div class="notes-modal" id="noteViewerModal">
+
+        <div class="notes-modal-inner">
+
+            <div class="notes-viewer-topbar">
+                <button type="button" class="notes-viewer-icon-btn" onclick="toggleViewerNoteField('pinned')" id="viewerPinBtn">📌</button>
+                <button type="button" class="notes-viewer-icon-btn" onclick="toggleViewerNoteField('favorite')" id="viewerFavBtn">❤️</button>
+                <button type="button" class="notes-viewer-icon-btn" onclick="toggleViewerNoteField('locked')" id="viewerLockBtn">🔒</button>
+                <button type="button" class="notes-modal-close" onclick="closeNoteViewer()">✕</button>
+            </div>
+
+            <div id="noteViewerBody"></div>
+
+        </div>
+
+    </div>
+
+
+    <script>
+        const CURRENT_IDENTITY = "{{ identity_name }}";
+    </script>
+
+    <div class="avatar-modal" id="avatarModal">
+        <div class="avatar-modal-inner rpm-modal-inner">
+            <div class="avatar-modal-title">Create your 3D avatar</div>
+            <div id="avaturn-sdk-container" class="rpm-frame"></div>
+            <button type="button" class="avatar-modal-close" onclick="closeAvatarPicker()">Cancel</button>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+
+</body>
+
+</html>

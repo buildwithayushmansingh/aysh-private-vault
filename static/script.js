@@ -1099,3 +1099,383 @@ document.addEventListener("click", function (event) {
     }
 
 });
+// =========================================================
+// NOTES SECTION
+// =========================================================
+
+let allNotes = [];
+let currentNotesFilter = "all";
+let currentNoteAttachment = null;
+let currentViewerNoteId = null;
+
+async function loadNotes() {
+
+    try {
+
+        const response = await fetch("/api/notes");
+        const data = await response.json();
+
+        allNotes = data.notes || [];
+
+        renderNotes();
+
+    } catch (error) {
+        console.log("Load notes error:", error);
+    }
+}
+
+function setNotesFilter(filter, tabButton) {
+
+    document.querySelectorAll(".notes-filter-tab").forEach(function (t) {
+        t.classList.remove("active");
+    });
+
+    tabButton.classList.add("active");
+
+    currentNotesFilter = filter;
+
+    renderNotes();
+}
+
+function setNotesCategory(category, cardEl) {
+
+    document.querySelectorAll(".notes-category-card").forEach(function (c) {
+        c.classList.remove("active");
+    });
+
+    cardEl.classList.add("active");
+
+    renderNotes();
+}
+
+function renderNotes() {
+
+    const grid = document.getElementById("notesGrid");
+
+    if (!grid) return;
+
+    const searchTerm = (document.getElementById("notesSearchInput").value || "").toLowerCase();
+
+    let filtered = allNotes.filter(function (n) {
+
+        if (currentNotesFilter === "shared" && n.visibility !== "shared") return false;
+        if (currentNotesFilter === "only-me" && n.visibility !== "only-me") return false;
+        if (currentNotesFilter === "pinned" && !n.pinned) return false;
+        if (currentNotesFilter === "favorite" && !n.favorite) return false;
+        if (currentNotesFilter === "locked" && !n.locked) return false;
+
+        if (searchTerm) {
+
+            const haystack = [
+                n.title || "",
+                n.content || "",
+                (n.tags || []).join(" "),
+                n.category || ""
+            ].join(" ").toLowerCase();
+
+            if (!haystack.includes(searchTerm)) return false;
+        }
+
+        return true;
+    });
+
+    filtered.sort(function (a, b) {
+        if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+        return (b.updated_at || "").localeCompare(a.updated_at || "");
+    });
+
+    if (filtered.length === 0) {
+        grid.innerHTML = `
+            <div class="notes-empty">
+                No memories here yet.<br><br>
+                <button class="notes-new-btn" onclick="openNewNoteModal()">+ Create Note</button>
+            </div>
+        `;
+        return;
+    }
+
+    grid.innerHTML = filtered.map(function (n) {
+
+        const preview = n.locked
+            ? "🔒 This note is locked."
+            : (n.content || "").slice(0, 120);
+
+        const badges = [
+            n.pinned ? "📌" : "",
+            n.favorite ? "❤️" : "",
+            n.locked ? "🔒" : "",
+            n.visibility === "only-me" ? "👤" : "👥"
+        ].filter(Boolean).join(" ");
+
+        return `
+            <div class="notes-card" onclick="openNoteViewer('${n.id}')">
+                <div class="notes-card-badges">${badges}</div>
+                <div class="notes-card-title">${escapeHtml(n.title || "Untitled")}</div>
+                <div class="notes-card-preview">${escapeHtml(preview)}</div>
+                <div class="notes-card-meta">
+                    <span>${escapeHtml(n.owner || "")}</span>
+                    <span>${escapeHtml(n.updated_at || "")}</span>
+                </div>
+            </div>
+        `;
+
+    }).join("");
+}
+
+function escapeHtml(str) {
+    return (str || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+}
+
+
+// =========================
+// NEW NOTE MODAL
+// =========================
+
+function openNewNoteModal() {
+    document.getElementById("newNoteModal").classList.add("show");
+}
+
+function closeNewNoteModal() {
+    document.getElementById("newNoteModal").classList.remove("show");
+    document.getElementById("noteTitleInput").value = "";
+    document.getElementById("noteContentInput").value = "";
+    document.getElementById("noteTagsInput").value = "";
+    document.getElementById("noteAttachStatus").textContent = "";
+    currentNoteAttachment = null;
+}
+
+async function handleNoteAttachment(file) {
+
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    document.getElementById("noteAttachStatus").textContent = "Uploading...";
+
+    try {
+
+        const response = await fetch("/api/notes/upload-attachment", {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.attachment) {
+            currentNoteAttachment = data.attachment;
+            document.getElementById("noteAttachStatus").textContent = "✓ " + data.attachment.filename;
+        } else {
+            document.getElementById("noteAttachStatus").textContent = "Upload failed";
+        }
+
+    } catch (error) {
+        document.getElementById("noteAttachStatus").textContent = "Upload failed";
+    }
+}
+
+async function submitNewNote() {
+
+    const title = document.getElementById("noteTitleInput").value.trim();
+    const content = document.getElementById("noteContentInput").value.trim();
+    const tagsRaw = document.getElementById("noteTagsInput").value.trim();
+    const visibility = document.querySelector('input[name="noteVisibility"]:checked').value;
+
+    if (!title && !content) {
+        alert("Write something first!");
+        return;
+    }
+
+    const tags = tagsRaw ? tagsRaw.split(",").map(t => t.trim()).filter(Boolean) : [];
+
+    try {
+
+        const response = await fetch("/api/notes", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                title: title,
+                content: content,
+                category: "us-and-me",
+                tags: tags,
+                visibility: visibility,
+                attachment: currentNoteAttachment
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.note) {
+            allNotes.push(data.note);
+            renderNotes();
+            closeNewNoteModal();
+        }
+
+    } catch (error) {
+        console.log("Create note error:", error);
+    }
+}
+
+
+// =========================
+// NOTE VIEWER
+// =========================
+
+function openNoteViewer(noteId) {
+
+    const note = allNotes.find(n => n.id === noteId);
+
+    if (!note) return;
+
+    currentViewerNoteId = noteId;
+
+    document.getElementById("viewerPinBtn").classList.toggle("active", note.pinned);
+    document.getElementById("viewerFavBtn").classList.toggle("active", note.favorite);
+    document.getElementById("viewerLockBtn").classList.toggle("active", note.locked);
+
+    const body = document.getElementById("noteViewerBody");
+
+    const canSeeContent = !note.locked || note.owner === CURRENT_IDENTITY;
+
+    if (note.locked && !canSeeContent) {
+
+        body.innerHTML = `
+            <div class="notes-locked-banner">
+                🔒 Protected Note<br><br>
+                This content is protected.
+            </div>
+        `;
+
+    } else if (note.locked) {
+
+        body.innerHTML = `
+            <div class="notes-locked-banner">
+                🔒 Protected Note<br><br>
+                This content is protected.
+                <br><br>
+                <button class="notes-modal-save" onclick="revealLockedNote()">Unlock</button>
+            </div>
+        `;
+
+    } else {
+
+        renderNoteViewerContent(note);
+    }
+
+    document.getElementById("noteViewerModal").classList.add("show");
+}
+
+function revealLockedNote() {
+
+    const note = allNotes.find(n => n.id === currentViewerNoteId);
+
+    if (note) renderNoteViewerContent(note);
+}
+
+function renderNoteViewerContent(note) {
+
+    const body = document.getElementById("noteViewerBody");
+
+    const attachmentHtml = note.attachment
+        ? (note.attachment.type === "image"
+            ? `<img src="${note.attachment.url}" style="max-width:100%; border-radius:10px; margin-bottom:14px;">`
+            : `<a href="${note.attachment.url}" target="_blank">📄 ${escapeHtml(note.attachment.filename)}</a><br><br>`)
+        : "";
+
+    body.innerHTML = `
+        <div class="notes-viewer-title">${escapeHtml(note.title || "Untitled")}</div>
+        ${attachmentHtml}
+        <div class="notes-viewer-content">${escapeHtml(note.content || "")}</div>
+        <div class="notes-viewer-tags">${(note.tags || []).map(t => "#" + escapeHtml(t)).join(" ")}</div>
+        <div class="notes-viewer-meta">
+            Created by: ${escapeHtml(note.owner || "")} · ${note.visibility === "shared" ? "Shared" : "Only Me"}<br>
+            Updated: ${escapeHtml(note.updated_at || "")}
+        </div>
+        <div class="notes-viewer-actions">
+            <button class="notes-modal-cancel" onclick="deleteCurrentNote()">Delete</button>
+        </div>
+    `;
+}
+
+function closeNoteViewer() {
+    document.getElementById("noteViewerModal").classList.remove("show");
+    currentViewerNoteId = null;
+}
+
+async function toggleViewerNoteField(field) {
+
+    if (!currentViewerNoteId) return;
+
+    try {
+
+        const response = await fetch(`/api/notes/${currentViewerNoteId}/toggle`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ field: field })
+        });
+
+        const data = await response.json();
+
+        if (data.note) {
+
+            const idx = allNotes.findIndex(n => n.id === data.note.id);
+            if (idx !== -1) allNotes[idx] = data.note;
+
+            renderNotes();
+            openNoteViewer(data.note.id);
+        }
+
+    } catch (error) {
+        console.log("Toggle note error:", error);
+    }
+}
+
+async function deleteCurrentNote() {
+
+    if (!currentViewerNoteId) return;
+
+    const confirmDelete = confirm("Delete this note? This cannot be undone.");
+
+    if (!confirmDelete) return;
+
+    try {
+
+        await fetch(`/api/notes/${currentViewerNoteId}`, { method: "DELETE" });
+
+        allNotes = allNotes.filter(n => n.id !== currentViewerNoteId);
+
+        renderNotes();
+        closeNoteViewer();
+
+    } catch (error) {
+        console.log("Delete note error:", error);
+    }
+}
+
+
+// Init on the notes page only
+const notesGridEl = document.getElementById("notesGrid");
+
+if (notesGridEl) {
+
+    loadNotes();
+
+    document.getElementById("notesSearchInput").addEventListener("input", renderNotes);
+
+    document.addEventListener("keydown", function (event) {
+
+        if (event.key === "Escape") {
+            closeNewNoteModal();
+            closeNoteViewer();
+        }
+    });
+
+    document.addEventListener("click", function (event) {
+
+        if (event.target.id === "newNoteModal") closeNewNoteModal();
+        if (event.target.id === "noteViewerModal") closeNoteViewer();
+    });
+}

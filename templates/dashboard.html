@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Our Private Space</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+    <script type="module">
+        import { AvaturnSDK } from "https://cdn.jsdelivr.net/npm/@avaturn/sdk/dist/index.js";
+        window.AvaturnSDK = AvaturnSDK;
+    </script>
+
+</head>
+
+<body class="vault-page">
+
+    <!-- =========================
+         SIMPLE HEADER (no page-nav, since this IS the hub)
+    ========================= -->
+
+    <header class="vault-dock">
+
+        <div class="vault-dock-inner">
+
+            <a href="/dashboard" class="vault-logo" style="text-decoration:none;">
+                <span class="vault-logo-dot"></span>
+                VAULT
+            </a>
+
+            <div class="vault-dock-actions">
+
+                <button
+                    class="avatar-btn"
+                    onclick="openAvatarPicker()"
+                    type="button"
+                    id="avatarBtn"
+                    title="Change avatar"
+                    data-avatar-url="{{ current_avatar }}"
+                >
+                    <canvas id="avatarBtnCanvas"></canvas>
+                    {% if not current_avatar %}
+                    <span class="avatar-btn-default" id="avatarBtnDefault">👤</span>
+                    {% endif %}
+                </button>
+
+                <button
+                    class="dock-icon-btn"
+                    onclick="toggleTheme()"
+                    id="themeToggleBtn"
+                    type="button"
+                    title="Toggle theme"
+                >
+                    🖥
+                </button>
+
+                <a href="/logout" class="dock-icon-btn" title="Logout">⏻</a>
+
+            </div>
+
+        </div>
+
+    </header>
+
+
+    <!-- =========================
+         MAIN DASHBOARD CONTENT
+    ========================= -->
+
+    <main class="ourspace-wrap">
+
+        <div class="ourspace-title">
+            <span class="ourspace-sparkle">✦</span>
+            OUR PRIVATE SPACE
+            <span class="ourspace-sparkle">✦</span>
+        </div>
+
+        <div class="ourspace-welcome">
+            Welcome back, <strong>{{ identity_name }}</strong>
+        </div>
+
+
+        <!-- =========================
+             SECTION CARDS
+        ========================= -->
+
+        <div class="ourspace-grid">
+
+            <a href="/chat" class="ourspace-card">
+                <span class="ourspace-card-icon">💬</span>
+                <span class="ourspace-card-label">Chat</span>
+            </a>
+
+            <a href="/home" class="ourspace-card">
+                <span class="ourspace-card-icon">📸</span>
+                <span class="ourspace-card-label">Memories</span>
+            </a>
+
+            <a href="/security" class="ourspace-card">
+                <span class="ourspace-card-icon">🛡</span>
+                <span class="ourspace-card-label">Security</span>
+            </a>
+
+            <a href="/activity" class="ourspace-card">
+                <span class="ourspace-card-icon">🕒</span>
+                <span class="ourspace-card-label">Activity</span>
+            </a>
+
+            <a href="/storage" class="ourspace-card">
+                <span class="ourspace-card-icon">📊</span>
+                <span class="ourspace-card-label">Storage</span>
+            </a>
+
+            <!-- Placeholder cards for features you'll add later -->
+
+            <a href="/notes" class="ourspace-card ourspace-card-soon">
+                <span class="ourspace-card-icon">📝</span>
+                <span class="ourspace-card-label">Notes</span>
+                
+            </a>
+
+            <div class="ourspace-card ourspace-card-soon">
+                <span class="ourspace-card-icon">📅</span>
+                <span class="ourspace-card-label">Dates</span>
+                <span class="ourspace-card-soon-tag">Coming soon</span>
+            </div>
+
+            <div class="ourspace-card ourspace-card-soon">
+                <span class="ourspace-card-icon">🎵</span>
+                <span class="ourspace-card-label">Playlist</span>
+                <span class="ourspace-card-soon-tag">Coming soon</span>
+            </div>
+
+            <div class="ourspace-card ourspace-card-soon">
+                <span class="ourspace-card-icon">🎁</span>
+                <span class="ourspace-card-label">Wishlist</span>
+                <span class="ourspace-card-soon-tag">Coming soon</span>
+            </div>
+
+            <div class="ourspace-card ourspace-card-soon">
+                <span class="ourspace-card-icon">🗺️</span>
+                <span class="ourspace-card-label">Places</span>
+                <span class="ourspace-card-soon-tag">Coming soon</span>
+            </div>
+
+            <div class="ourspace-card ourspace-card-soon">
+                <span class="ourspace-card-icon">📂</span>
+                <span class="ourspace-card-label">Files</span>
+                <span class="ourspace-card-soon-tag">Coming soon</span>
+            </div>
+
+        </div>
+
+
+        <!-- =========================
+             RECENT ACTIVITY
+        ========================= -->
+
+        <div class="ourspace-recent">
+
+            <div class="ourspace-recent-title">── Recent Activity ──</div>
+
+            {% if recent_activity %}
+
+            <ul class="ourspace-recent-list">
+
+                {% for entry in recent_activity %}
+                <li>
+                    <strong>{{ entry.actor }}</strong>
+                    {{ entry.action }}
+                    {% if entry.filename %}"{{ entry.filename }}"{% endif %}
+                    <span class="ourspace-recent-time">{{ entry.timestamp }}</span>
+                </li>
+                {% endfor %}
+
+            </ul>
+
+            {% else %}
+
+            <div class="ourspace-recent-empty">Nothing yet — activity will show up here.</div>
+
+            {% endif %}
+
+        </div>
+
+    </main>
+
+
+    <script>
+        const CURRENT_IDENTITY = "{{ identity_name }}";
+    </script>
+
+    <div class="avatar-modal" id="avatarModal">
+
+        <div class="avatar-modal-inner rpm-modal-inner">
+
+            <div class="avatar-modal-title">Create your 3D avatar</div>
+
+            <div id="avaturn-sdk-container" class="rpm-frame"></div>
+
+            <button type="button" class="avatar-modal-close" onclick="closeAvatarPicker()">
+                Cancel
+            </button>
+
+        </div>
+
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+
+</body>
+
+</html>
