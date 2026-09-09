@@ -4,7 +4,6 @@ import secrets
 import json
 import threading
 from datetime import datetime
-
 from dotenv import load_dotenv
 
 import cloudinary
@@ -234,7 +233,7 @@ def save_chat_log(messages):
     threading.Thread(target=save_json_store, args=(CHAT_LOG_PUBLIC_ID, messages)).start()
 
 
-def add_message(sender, text, attachment=None):
+def add_message(sender, text, attachment=None, reply_to=None):
 
     global CHAT_CACHE
 
@@ -248,6 +247,7 @@ def add_message(sender, text, attachment=None):
             "sender": sender,
             "text": text,
             "attachment": attachment,
+            "reply_to": reply_to,
             "timestamp": datetime.now().strftime("%d %b, %I:%M %p")
         })
 
@@ -256,7 +256,6 @@ def add_message(sender, text, attachment=None):
     threading.Thread(target=save_json_store, args=(CHAT_LOG_PUBLIC_ID, messages)).start()
 
     return messages
-
 def get_shared_files():
 
     messages = load_chat_log()
@@ -727,16 +726,16 @@ def send_message():
 
     text = (data.get("text") or "").strip()
 
+    reply_to = data.get("reply_to")
+
     if not text:
         return jsonify({"error": "Empty message"}), 400
 
     sender = session.get("identity_name", "Someone")
 
-    messages = add_message(sender, text)
+    messages = add_message(sender, text, reply_to=reply_to)
 
     return jsonify({"messages": messages, "shared_files": get_shared_files()})
-
-
 # =========================================================
 # FAVORITES - TOGGLE
 # =========================================================

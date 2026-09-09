@@ -225,9 +225,8 @@ if (chatWindow && chatForm && chatInput) {
 
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
-        camera.position.set(0, 1.6, 2.2);
 
-        const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
+        const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.4);
         scene.add(light);
 
         const loader = new THREE.GLTFLoader();
@@ -235,8 +234,16 @@ if (chatWindow && chatForm && chatInput) {
         loader.load(url, function (gltf) {
 
             const model = gltf.scene;
-            model.position.y = -1.6;
             scene.add(model);
+
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            const center = box.getCenter(new THREE.Vector3());
+
+            const headY = box.max.y - size.y * 0.12;
+
+            camera.position.set(center.x, headY, center.z + size.z * 2.2 + 0.35);
+            camera.lookAt(center.x, headY, center.z);
 
             renderer.render(scene, camera);
 
@@ -322,6 +329,37 @@ if (chatWindow && chatForm && chatInput) {
 
     let renderedMessageIds = new Set();
     let lastRenderedDateLabel = null;
+    let messageMap = {};
+    let currentReply = null;
+
+    function updateMessageMap(messages) {
+        messages.forEach(function (m) {
+            messageMap[m.id] = m;
+        });
+    }
+
+    function startReply(id) {
+
+        const msg = messageMap[id];
+
+        if (!msg) return;
+
+        currentReply = { id: msg.id, sender: msg.sender, text: msg.text || (msg.attachment ? "📎 Attachment" : "") };
+
+        document.getElementById("replyPreviewSender").textContent = msg.sender;
+        document.getElementById("replyPreviewSnippet").textContent = currentReply.text.slice(0, 60);
+        document.getElementById("replyPreview").style.display = "flex";
+
+        chatInput.focus();
+    }
+
+    function cancelReply() {
+        currentReply = null;
+        document.getElementById("replyPreview").style.display = "none";
+    }
+
+    window.startReply = startReply;
+    window.cancelReply = cancelReply;
 
     function buildBubbleHtml(msg, forceDateLabel) {
 
@@ -338,11 +376,28 @@ if (chatWindow && chatForm && chatInput) {
             ? `<button type="button" class="chat-delete-button" onclick="deleteMessage('${msg.id}')">🗑</button>`
             : "";
 
+        const replyButton = `<button type="button" class="chat-reply-button" onclick="startReply('${msg.id}')">↩</button>`;
+
         const attachmentHtml = buildAttachmentHtml(msg.attachment);
 
         const textHtml = safeText
             ? `<div class="chat-bubble-text">${safeText}</div>`
             : "";
+
+        let quoteHtml = "";
+
+        if (msg.reply_to && messageMap[msg.reply_to]) {
+
+            const quoted = messageMap[msg.reply_to];
+
+            const quotedSnippet = (quoted.text || (quoted.attachment ? "📎 Attachment" : ""))
+                .slice(0, 60)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+
+            quoteHtml = `<div class="reply-quote"><span class="reply-quote-sender">${quoted.sender}</span>${quotedSnippet}</div>`;
+        }
 
         const dateLabel = (msg.timestamp || "").split(",")[0];
 
@@ -359,9 +414,11 @@ if (chatWindow && chatForm && chatInput) {
                 <div class="chat-avatar" data-sender="${msg.sender}"><span class="chat-avatar-fallback">${initial}</span></div>
                 <div class="chat-bubble">
                     <div class="chat-bubble-sender">${msg.sender}</div>
+                    ${quoteHtml}
                     ${attachmentHtml}
                     ${textHtml}
                     <div class="chat-bubble-time">${msg.timestamp}</div>
+                    ${replyButton}
                     ${deleteButton}
                 </div>
             </div>
@@ -480,6 +537,7 @@ if (chatWindow && chatForm && chatInput) {
                 return;
             }
 
+            updateMessageMap(data.messages);
             renderMessages(data.messages);
             renderSharedFiles(data.shared_files);
 
@@ -502,6 +560,10 @@ if (chatWindow && chatForm && chatInput) {
 
         chatInput.value = "";
 
+        const replyId = currentReply ? currentReply.id : null;
+
+        cancelReply();
+
         try {
 
             const response = await fetch("/api/send-message", {
@@ -509,9 +571,8 @@ if (chatWindow && chatForm && chatInput) {
                 headers: {
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify({ text: text })
+                body: JSON.stringify({ text: text, reply_to: replyId })
             });
-
             const data = await response.json();
 
             if (data.messages) {
