@@ -887,6 +887,7 @@ document.addEventListener("keydown", function (event) {
         closeNewJournalModal();
         closeNewLetterModal();
         closeNewDateModal();
+        closeNewPlanModal();
     }
 });
 
@@ -897,6 +898,7 @@ document.addEventListener("click", function (event) {
     if (event.target.id === "newJournalModal") closeNewJournalModal();
     if (event.target.id === "newLetterModal") closeNewLetterModal();
     if (event.target.id === "newDateModal") closeNewDateModal();
+    if (event.target.id === "newPlanModal") closeNewPlanModal();
 });
 // =========================
 // VAULT DOCK — SLIDING PILL INDICATOR
@@ -1142,12 +1144,14 @@ function setNotesCategory(category, cardEl) {
     const journalTimeline = document.getElementById("journalTimeline");
     const lettersGrid = document.getElementById("lettersGrid");
     const datesGrid = document.getElementById("datesGrid");
+    const plansGrid = document.getElementById("plansGrid");
     const filterRow = document.querySelector(".notes-filter-row");
 
     notesGrid.style.display = "none";
     journalTimeline.style.display = "none";
     lettersGrid.style.display = "none";
     datesGrid.style.display = "none";
+    plansGrid.style.display = "none";
     if (filterRow) filterRow.style.display = "none";
 
     if (category === "journal") {
@@ -1165,43 +1169,10 @@ function setNotesCategory(category, cardEl) {
         datesGrid.style.display = "grid";
         loadDates();
 
-    } else {
+    } else if (category === "plans") {
 
-        notesGrid.style.display = "grid";
-        if (filterRow) filterRow.style.display = "flex";
-        renderNotes();
-    }
-}
-
-function setNotesCategory(category, cardEl) {
-
-    document.querySelectorAll(".notes-category-card").forEach(function (c) {
-        c.classList.remove("active");
-    });
-
-    cardEl.classList.add("active");
-
-    currentJournalCategory = category;
-
-    const notesGrid = document.getElementById("notesGrid");
-    const journalTimeline = document.getElementById("journalTimeline");
-    const lettersGrid = document.getElementById("lettersGrid");
-    const filterRow = document.querySelector(".notes-filter-row");
-
-    notesGrid.style.display = "none";
-    journalTimeline.style.display = "none";
-    lettersGrid.style.display = "none";
-    if (filterRow) filterRow.style.display = "none";
-
-    if (category === "journal") {
-
-        journalTimeline.style.display = "flex";
-        loadJournal();
-
-    } else if (category === "letters") {
-
-        lettersGrid.style.display = "grid";
-        loadLetters();
+        plansGrid.style.display = "grid";
+        loadPlans();
 
     } else {
 
@@ -1842,6 +1813,8 @@ function openCorrectNewModal() {
         openNewLetterModal();
     } else if (currentJournalCategory === "dates") {
         openNewDateModal();
+    } else if (currentJournalCategory === "plans") {
+        openNewPlanModal();
     } else {
         openNewNoteModal();
     }
@@ -2398,5 +2371,305 @@ async function deleteCurrentDate() {
 
     } catch (error) {
         console.log("Delete date error:", error);
+    }
+}
+// =========================================================
+// OUR PLANS
+// =========================================================
+
+let allPlans = [];
+let currentViewerPlanId = null;
+
+async function loadPlans() {
+
+    try {
+
+        const response = await fetch("/api/plans");
+        const data = await response.json();
+
+        allPlans = data.plans || [];
+
+        renderPlansGrid();
+
+    } catch (error) {
+        console.log("Load plans error:", error);
+    }
+}
+
+function renderPlansGrid() {
+
+    const grid = document.getElementById("plansGrid");
+
+    if (!grid) return;
+
+    if (allPlans.length === 0) {
+
+        grid.innerHTML = `
+            <div class="notes-empty">
+                No plans yet.<br><br>
+                <button class="notes-new-btn" onclick="openNewPlanModal()">+ Create Plan</button>
+            </div>
+        `;
+        return;
+    }
+
+    grid.innerHTML = allPlans.map(function (plan) {
+
+        const total = (plan.items || []).length;
+        const done = (plan.items || []).filter(i => i.completed).length;
+
+        return `
+            <div class="notes-card" onclick="openPlanViewer('${plan.id}')">
+                <div class="notes-card-badges">
+                    <span class="plan-priority-badge plan-priority-${plan.priority}">${plan.priority}</span>
+                </div>
+                <div class="notes-card-title">🎯 ${escapeHtml(plan.title || "Untitled")}</div>
+                <div class="notes-card-preview">${done}/${total} completed${plan.due_date ? " · Due " + escapeHtml(plan.due_date) : ""}</div>
+                <div class="plan-progress-bar-outer">
+                    <div class="plan-progress-bar-inner" style="width:${plan.progress || 0}%;"></div>
+                </div>
+                <div class="notes-card-meta">
+                    <span>${escapeHtml(plan.owner || "")}</span>
+                    <span>${plan.progress || 0}%</span>
+                </div>
+            </div>
+        `;
+
+    }).join("");
+}
+
+
+// =========================
+// NEW PLAN MODAL
+// =========================
+
+function openNewPlanModal() {
+    document.getElementById("newPlanModal").classList.add("show");
+}
+
+function closeNewPlanModal() {
+    document.getElementById("newPlanModal").classList.remove("show");
+    document.getElementById("planTitleInput").value = "";
+    document.getElementById("planDueDateInput").value = "";
+    document.getElementById("planItemsInput").value = "";
+    document.getElementById("planPriorityInput").value = "normal";
+}
+
+async function submitNewPlan() {
+
+    const title = document.getElementById("planTitleInput").value.trim();
+    const priority = document.getElementById("planPriorityInput").value;
+    const dueDate = document.getElementById("planDueDateInput").value;
+    const itemsRaw = document.getElementById("planItemsInput").value;
+    const visibility = document.querySelector('input[name="planVisibility"]:checked').value;
+
+    if (!title) {
+        alert("Please enter a plan title.");
+        return;
+    }
+
+    const items = itemsRaw.split("\n").map(t => t.trim()).filter(Boolean);
+
+    try {
+
+        const response = await fetch("/api/plans", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                title: title,
+                priority: priority,
+                due_date: dueDate || null,
+                items: items,
+                visibility: visibility
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.plan) {
+            allPlans.push(data.plan);
+            renderPlansGrid();
+            closeNewPlanModal();
+        }
+
+    } catch (error) {
+        console.log("Create plan error:", error);
+    }
+}
+
+
+// =========================
+// PLAN VIEWER (reuses note viewer modal)
+// =========================
+
+function openPlanViewer(planId) {
+
+    const plan = allPlans.find(p => p.id === planId);
+
+    if (!plan) return;
+
+    currentViewerPlanId = planId;
+    currentViewerNoteId = null;
+    currentViewerJournalId = null;
+    currentViewerLetterId = null;
+    currentViewerDateId = null;
+
+    document.getElementById("viewerPinBtn").style.display = "none";
+    document.getElementById("viewerFavBtn").style.display = "none";
+    document.getElementById("viewerLockBtn").style.display = "none";
+
+    renderPlanViewerBody(plan);
+
+    document.getElementById("noteViewerModal").classList.add("show");
+}
+
+function renderPlanViewerBody(plan) {
+
+    const itemsHtml = (plan.items || []).map(function (item) {
+
+        return `
+            <div class="plan-checklist-item ${item.completed ? "completed" : ""}">
+                <input type="checkbox" ${item.completed ? "checked" : ""} onchange="togglePlanItem('${item.id}')">
+                <span class="plan-checklist-text">${escapeHtml(item.text)}</span>
+                <button class="plan-checklist-delete" onclick="deletePlanItem('${item.id}')">✕</button>
+            </div>
+        `;
+
+    }).join("");
+
+    document.getElementById("noteViewerBody").innerHTML = `
+        <div class="notes-viewer-title">🎯 ${escapeHtml(plan.title || "Untitled")}</div>
+        <div class="notes-viewer-meta">
+            <span class="plan-priority-badge plan-priority-${plan.priority}">${plan.priority}</span>
+            ${plan.due_date ? " · Due " + escapeHtml(plan.due_date) : ""}
+        </div>
+        <div class="plan-progress-bar-outer">
+            <div class="plan-progress-bar-inner" style="width:${plan.progress || 0}%;"></div>
+        </div>
+        <div class="plan-checklist">${itemsHtml}</div>
+        <div class="plan-add-item-row">
+            <input type="text" id="newPlanItemInput" class="notes-form-input" placeholder="Add an item..." style="margin-bottom:0;">
+            <button class="plan-add-item-btn" onclick="addPlanItem()">Add</button>
+        </div>
+        <div class="notes-viewer-meta" style="margin-top:16px;">
+            Created by: ${escapeHtml(plan.owner || "")} · ${plan.visibility === "shared" ? "Shared" : "Only Me"}
+        </div>
+        <div class="notes-viewer-actions">
+            <button class="notes-modal-cancel" onclick="deleteCurrentPlan()">Delete Plan</button>
+        </div>
+    `;
+}
+
+async function togglePlanItem(itemId) {
+
+    if (!currentViewerPlanId) return;
+
+    try {
+
+        const response = await fetch(`/api/plans/${currentViewerPlanId}/items/${itemId}/toggle`, {
+            method: "POST"
+        });
+
+        const data = await response.json();
+
+        if (data.plan) {
+
+            const idx = allPlans.findIndex(p => p.id === data.plan.id);
+            if (idx !== -1) allPlans[idx] = data.plan;
+
+            renderPlansGrid();
+            renderPlanViewerBody(data.plan);
+        }
+
+    } catch (error) {
+        console.log("Toggle plan item error:", error);
+    }
+}
+
+async function deletePlanItem(itemId) {
+
+    if (!currentViewerPlanId) return;
+
+    try {
+
+        const response = await fetch(`/api/plans/${currentViewerPlanId}/items/${itemId}`, {
+            method: "DELETE"
+        });
+
+        const data = await response.json();
+
+        if (data.plan) {
+
+            const idx = allPlans.findIndex(p => p.id === data.plan.id);
+            if (idx !== -1) allPlans[idx] = data.plan;
+
+            renderPlansGrid();
+            renderPlanViewerBody(data.plan);
+        }
+
+    } catch (error) {
+        console.log("Delete plan item error:", error);
+    }
+}
+
+async function addPlanItem() {
+
+    if (!currentViewerPlanId) return;
+
+    const input = document.getElementById("newPlanItemInput");
+    const text = input.value.trim();
+
+    if (!text) return;
+
+    try {
+
+        const response = await fetch(`/api/plans/${currentViewerPlanId}/items`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: text })
+        });
+
+        const data = await response.json();
+
+        if (data.plan) {
+
+            const idx = allPlans.findIndex(p => p.id === data.plan.id);
+            if (idx !== -1) allPlans[idx] = data.plan;
+
+            renderPlansGrid();
+            renderPlanViewerBody(data.plan);
+        }
+
+    } catch (error) {
+        console.log("Add plan item error:", error);
+    }
+}
+
+async function deleteCurrentPlan() {
+
+    if (!currentViewerPlanId) return;
+
+    const confirmDelete = confirm("Delete this entire plan? This cannot be undone.");
+
+    if (!confirmDelete) return;
+
+    try {
+
+        await fetch(`/api/plans/${currentViewerPlanId}`, { method: "DELETE" });
+
+        allPlans = allPlans.filter(p => p.id !== currentViewerPlanId);
+
+        renderPlansGrid();
+        closeNoteViewer();
+
+        currentViewerPlanId = null;
+
+        document.getElementById("viewerPinBtn").style.display = "inline-flex";
+        document.getElementById("viewerFavBtn").style.display = "inline-flex";
+        document.getElementById("viewerLockBtn").style.display = "inline-flex";
+        document.getElementById("viewerFavBtn").setAttribute("onclick", "toggleViewerNoteField('favorite')");
+
+    } catch (error) {
+        console.log("Delete plan error:", error);
     }
 }

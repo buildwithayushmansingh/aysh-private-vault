@@ -84,6 +84,8 @@ JOURNAL_PUBLIC_ID = "private-vault-meta/journal"
 NOTES_ATTACHMENTS_FOLDER = "private-vault-notes"
 LETTERS_PUBLIC_ID = "private-vault-meta/letters"
 DATES_PUBLIC_ID = "private-vault-meta/important_dates"
+PLANS_PUBLIC_ID = "private-vault-meta/plans"
+
 
 JOURNAL_CACHE = None
 JOURNAL_LOCK = threading.Lock()
@@ -265,6 +267,7 @@ def api_get_letters():
     return jsonify({"letters": result})
 
 DATES_CACHE = None
+PLANS_CACHE = None
 DATES_LOCK = threading.Lock()
 
 
@@ -315,6 +318,391 @@ def find_date_entry(dates, entry_id):
             return d
 
     return None
+def can_modify_date(entry, identity_name):
+
+    if entry.get("visibility") == "shared":
+        return True
+
+    return entry.get("owner") == identity_name
+
+
+@app.route("/api/dates")
+def api_get_dates():
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    dates = get_visible_dates(identity_name)
+
+    return jsonify({"dates": dates})
+
+
+@app.route("/api/dates", methods=["POST"])
+def api_create_date():
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    data = request.get_json(silent=True) or {}
+
+    title = (data.get("title") or "").strip()
+    description = (data.get("description") or "").strip()
+    entry_date = (data.get("date") or "").strip()
+    repeat_yearly = bool(data.get("repeat_yearly"))
+    visibility = data.get("visibility", "shared")
+    attachment = data.get("attachment")
+
+    if not title or not entry_date:
+        return jsonify({"error": "Title and date are required"}), 400
+
+    if visibility not in ("shared", "only-me"):
+        visibility = "shared"
+
+    owner = session.get("identity_name", "Someone")
+
+    dates = load_dates()
+
+    now = datetime.now().strftime("%d %b, %I:%M %p")
+
+    entry = {
+        "id": secrets.token_hex(6),
+        "title": title,
+        "description": description,
+        "date": entry_date,
+        "repeat_yearly": repeat_yearly,
+        "attachment": attachment,
+        "visibility": visibility,
+        "owner": owner,
+        "created_at": now,
+        "updated_at": now
+    }
+
+    dates.append(entry)
+
+    save_dates(dates)
+
+    return jsonify({"date": entry})
+
+
+@app.route("/api/dates/<entry_id>", methods=["PUT"])
+def api_update_date(entry_id):
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    dates = load_dates()
+
+    entry = find_date_entry(dates, entry_id)
+
+    if not entry:
+        return jsonify({"error": "Date not found"}), 404
+
+    if not can_modify_date(entry, identity_name):
+        return jsonify({"error": "Not allowed"}), 403
+
+    data = request.get_json(silent=True) or {}
+
+    if "title" in data:
+        entry["title"] = (data.get("title") or "").strip()
+
+    if "description" in data:
+        entry["description"] = (data.get("description") or "").strip()
+
+    if "date" in data and data["date"]:
+        entry["date"] = data["date"]
+
+    if "repeat_yearly" in data:
+        entry["repeat_yearly"] = bool(data["repeat_yearly"])
+
+    if "visibility" in data and data["visibility"] in ("shared", "only-me"):
+        entry["visibility"] = data["visibility"]
+
+    entry["updated_at"] = datetime.now().strftime("%d %b, %I:%M %p")
+
+    save_dates(dates)
+
+    return jsonify({"date": entry})
+
+
+@app.route("/api/dates/<entry_id>", methods=["DELETE"])
+def api_delete_date(entry_id):
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    dates = load_dates()
+
+    entry = find_date_entry(dates, entry_id)
+
+    if not entry:
+        return jsonify({"error": "Date not found"}), 404
+
+    if not can_modify_date(entry, identity_name):
+        return
+
+PLANS_LOCK = threading.Lock()
+
+
+def load_plans():
+
+    global PLANS_CACHE
+
+    with PLANS_LOCK:
+
+        if PLANS_CACHE is None:
+            PLANS_CACHE = load_json_store(PLANS_PUBLIC_ID)
+
+        return list(PLANS_CACHE)
+
+
+def save_plans(plans):
+
+    global PLANS_CACHE
+
+    with PLANS_LOCK:
+        PLANS_CACHE = list(plans)
+
+    threading.Thread(target=save_json_store, args=(PLANS_PUBLIC_ID, plans)).start()
+
+
+def get_visible_plans(identity_name):
+
+    plans = load_plans()
+
+    return [
+        p for p in plans
+        if p.get("visibility") == "shared" or p.get("owner") == identity_name
+    ]
+
+
+def can_modify_plan(plan, identity_name):
+
+    if plan.get("visibility") == "shared":
+        return True
+
+    return plan.get("owner") == identity_name
+
+
+def find_plan(plans, plan_id):
+
+    for p in plans:
+        if p.get("id") == plan_id:
+            return p
+
+    return None
+
+
+def calc_plan_progress(plan):
+
+    items = plan.get("items", [])
+
+    if not items:
+        return 0
+
+    done = sum(1 for i in items if i.get("completed"))
+
+    return round((done / len(items)) * 100)
+@app.route("/api/plans")
+def api_get_plans():
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    plans = get_visible_plans(identity_name)
+
+    for p in plans:
+        p["progress"] = calc_plan_progress(p)
+
+    return jsonify({"plans": plans})
+
+
+@app.route("/api/plans", methods=["POST"])
+def api_create_plan():
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    data = request.get_json(silent=True) or {}
+
+    title = (data.get("title") or "").strip()
+    priority = data.get("priority", "normal")
+    due_date = (data.get("due_date") or "").strip() or None
+    visibility = data.get("visibility", "shared")
+    items_raw = data.get("items", [])
+
+    if not title:
+        return jsonify({"error": "Title is required"}), 400
+
+    if visibility not in ("shared", "only-me"):
+        visibility = "shared"
+
+    if priority not in ("low", "normal", "high"):
+        priority = "normal"
+
+    owner = session.get("identity_name", "Someone")
+
+    items = [
+        {"id": secrets.token_hex(4), "text": t.strip(), "completed": False}
+        for t in items_raw if t.strip()
+    ]
+
+    plans = load_plans()
+
+    now = datetime.now().strftime("%d %b, %I:%M %p")
+
+    plan = {
+        "id": secrets.token_hex(6),
+        "title": title,
+        "priority": priority,
+        "due_date": due_date,
+        "items": items,
+        "visibility": visibility,
+        "owner": owner,
+        "created_at": now,
+        "updated_at": now
+    }
+
+    plans.append(plan)
+
+    save_plans(plans)
+
+    plan_with_progress = dict(plan)
+    plan_with_progress["progress"] = calc_plan_progress(plan)
+
+    return jsonify({"plan": plan_with_progress})
+
+
+@app.route("/api/plans/<plan_id>/items", methods=["POST"])
+def api_add_plan_item(plan_id):
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    plans = load_plans()
+
+    plan = find_plan(plans, plan_id)
+
+    if not plan:
+        return jsonify({"error": "Plan not found"}), 404
+
+    if not can_modify_plan(plan, identity_name):
+        return jsonify({"error": "Not allowed"}), 403
+
+    data = request.get_json(silent=True) or {}
+
+    text = (data.get("text") or "").strip()
+
+    if not text:
+        return jsonify({"error": "Item text required"}), 400
+
+    plan["items"].append({"id": secrets.token_hex(4), "text": text, "completed": False})
+
+    plan["updated_at"] = datetime.now().strftime("%d %b, %I:%M %p")
+
+    save_plans(plans)
+
+    plan_with_progress = dict(plan)
+    plan_with_progress["progress"] = calc_plan_progress(plan)
+
+    return jsonify({"plan": plan_with_progress})
+
+
+@app.route("/api/plans/<plan_id>/items/<item_id>/toggle", methods=["POST"])
+def api_toggle_plan_item(plan_id, item_id):
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    plans = load_plans()
+
+    plan = find_plan(plans, plan_id)
+
+    if not plan:
+        return jsonify({"error": "Plan not found"}), 404
+
+    if not can_modify_plan(plan, identity_name):
+        return jsonify({"error": "Not allowed"}), 403
+
+    for item in plan.get("items", []):
+        if item.get("id") == item_id:
+            item["completed"] = not item.get("completed", False)
+            break
+
+    plan["updated_at"] = datetime.now().strftime("%d %b, %I:%M %p")
+
+    save_plans(plans)
+
+    plan_with_progress = dict(plan)
+    plan_with_progress["progress"] = calc_plan_progress(plan)
+
+    return jsonify({"plan": plan_with_progress})
+
+
+@app.route("/api/plans/<plan_id>/items/<item_id>", methods=["DELETE"])
+def api_delete_plan_item(plan_id, item_id):
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    plans = load_plans()
+
+    plan = find_plan(plans, plan_id)
+
+    if not plan:
+        return jsonify({"error": "Plan not found"}), 404
+
+    if not can_modify_plan(plan, identity_name):
+        return jsonify({"error": "Not allowed"}), 403
+
+    plan["items"] = [i for i in plan.get("items", []) if i.get("id") != item_id]
+
+    plan["updated_at"] = datetime.now().strftime("%d %b, %I:%M %p")
+
+    save_plans(plans)
+
+    plan_with_progress = dict(plan)
+    plan_with_progress["progress"] = calc_plan_progress(plan)
+
+    return jsonify({"plan": plan_with_progress})
+
+
+@app.route("/api/plans/<plan_id>", methods=["DELETE"])
+def api_delete_plan(plan_id):
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    plans = load_plans()
+
+    plan = find_plan(plans, plan_id)
+
+    if not plan:
+        return jsonify({"error": "Plan not found"}), 404
+
+    if not can_modify_plan(plan, identity_name):
+        return jsonify({"error": "Not allowed"}), 403
+
+    plans = [p for p in plans if p.get("id") != plan_id]
+
+    save_plans(plans)
+
+    return jsonify({"success": True})
 @app.route("/api/letters", methods=["POST"])
 def api_create_letter():
 

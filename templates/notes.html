@@ -124,11 +124,10 @@
     <span class="notes-category-label">Important Dates</span>
 </div>
 
-            <div class="notes-category-card notes-category-soon">
-                <span class="notes-category-icon">🎯</span>
-                <span class="notes-category-label">Our Plans</span>
-                <span class="notes-soon-tag">Coming soon</span>
-            </div>
+<div class="notes-category-card" data-category="plans" onclick="setNotesCategory('plans', this)">
+    <span class="notes-category-icon">🎯</span>
+    <span class="notes-category-label">Our Plans</span>
+</div>
 
             <div class="notes-category-card notes-category-soon">
                 <span class="notes-category-icon">🎁</span>
@@ -178,6 +177,7 @@
 <div class="journal-timeline" id="journalTimeline" style="display:none;"></div>
 <div class="notes-grid" id="lettersGrid" style="display:none;"></div>
 <div class="notes-grid" id="datesGrid" style="display:none;"></div>
+<div class="notes-grid" id="plansGrid" style="display:none;"></div>
     </main>
 
 
@@ -353,6 +353,42 @@
         <div class="notes-modal-actions">
             <button type="button" class="notes-modal-cancel" onclick="closeNewDateModal()">Cancel</button>
             <button type="button" class="notes-modal-save" onclick="submitNewDate()">Save Date</button>
+        </div>
+
+    </div>
+
+</div>
+<!-- =========================
+     NEW PLAN MODAL
+========================= -->
+
+<div class="notes-modal" id="newPlanModal">
+
+    <div class="notes-modal-inner">
+
+        <div class="notes-modal-title">New Plan</div>
+
+        <input type="text" id="planTitleInput" class="notes-form-input" placeholder="Plan title (e.g. Weekend Trip)">
+
+        <select id="planPriorityInput" class="notes-form-input">
+            <option value="low">Low priority</option>
+            <option value="normal" selected>Normal priority</option>
+            <option value="high">High priority</option>
+        </select>
+
+        <input type="date" id="planDueDateInput" class="notes-form-input">
+
+        <label class="letter-opendate-label">Checklist items (one per line)</label>
+        <textarea id="planItemsInput" class="notes-form-textarea" placeholder="Watch a movie&#10;Try a new place&#10;Take photos" rows="5"></textarea>
+
+        <div class="notes-visibility-row">
+            <label><input type="radio" name="planVisibility" value="shared" checked> Shared</label>
+            <label><input type="radio" name="planVisibility" value="only-me"> Only Me</label>
+        </div>
+
+        <div class="notes-modal-actions">
+            <button type="button" class="notes-modal-cancel" onclick="closeNewPlanModal()">Cancel</button>
+            <button type="button" class="notes-modal-save" onclick="submitNewPlan()">Save Plan</button>
         </div>
 
     </div>
