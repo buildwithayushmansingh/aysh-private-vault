@@ -881,18 +881,22 @@ if (vaultViewerEl) {
 // Keyboard controls: ESC to close, arrows to navigate
 document.addEventListener("keydown", function (event) {
 
-    const viewer = document.getElementById("vaultViewer");
-
-    if (!viewer || !viewer.classList.contains("show")) return;
-
     if (event.key === "Escape") {
-        closeViewer();
-    } else if (event.key === "ArrowLeft") {
-        viewerNav(-1);
-    } else if (event.key === "ArrowRight") {
-        viewerNav(1);
+        closeNewNoteModal();
+        closeNoteViewer();
+        closeNewJournalModal();
+        closeNewLetterModal();
+        closeNewDateModal();
     }
+});
 
+document.addEventListener("click", function (event) {
+
+    if (event.target.id === "newNoteModal") closeNewNoteModal();
+    if (event.target.id === "noteViewerModal") closeNoteViewer();
+    if (event.target.id === "newJournalModal") closeNewJournalModal();
+    if (event.target.id === "newLetterModal") closeNewLetterModal();
+    if (event.target.id === "newDateModal") closeNewDateModal();
 });
 // =========================
 // VAULT DOCK — SLIDING PILL INDICATOR
@@ -1124,17 +1128,49 @@ async function loadNotes() {
     }
 }
 
-function setNotesFilter(filter, tabButton) {
+function setNotesCategory(category, cardEl) {
 
-    document.querySelectorAll(".notes-filter-tab").forEach(function (t) {
-        t.classList.remove("active");
+    document.querySelectorAll(".notes-category-card").forEach(function (c) {
+        c.classList.remove("active");
     });
 
-    tabButton.classList.add("active");
+    cardEl.classList.add("active");
 
-    currentNotesFilter = filter;
+    currentJournalCategory = category;
 
-    renderNotes();
+    const notesGrid = document.getElementById("notesGrid");
+    const journalTimeline = document.getElementById("journalTimeline");
+    const lettersGrid = document.getElementById("lettersGrid");
+    const datesGrid = document.getElementById("datesGrid");
+    const filterRow = document.querySelector(".notes-filter-row");
+
+    notesGrid.style.display = "none";
+    journalTimeline.style.display = "none";
+    lettersGrid.style.display = "none";
+    datesGrid.style.display = "none";
+    if (filterRow) filterRow.style.display = "none";
+
+    if (category === "journal") {
+
+        journalTimeline.style.display = "flex";
+        loadJournal();
+
+    } else if (category === "letters") {
+
+        lettersGrid.style.display = "grid";
+        loadLetters();
+
+    } else if (category === "dates") {
+
+        datesGrid.style.display = "grid";
+        loadDates();
+
+    } else {
+
+        notesGrid.style.display = "grid";
+        if (filterRow) filterRow.style.display = "flex";
+        renderNotes();
+    }
 }
 
 function setNotesCategory(category, cardEl) {
@@ -1145,9 +1181,35 @@ function setNotesCategory(category, cardEl) {
 
     cardEl.classList.add("active");
 
-    renderNotes();
-}
+    currentJournalCategory = category;
 
+    const notesGrid = document.getElementById("notesGrid");
+    const journalTimeline = document.getElementById("journalTimeline");
+    const lettersGrid = document.getElementById("lettersGrid");
+    const filterRow = document.querySelector(".notes-filter-row");
+
+    notesGrid.style.display = "none";
+    journalTimeline.style.display = "none";
+    lettersGrid.style.display = "none";
+    if (filterRow) filterRow.style.display = "none";
+
+    if (category === "journal") {
+
+        journalTimeline.style.display = "flex";
+        loadJournal();
+
+    } else if (category === "letters") {
+
+        lettersGrid.style.display = "grid";
+        loadLetters();
+
+    } else {
+
+        notesGrid.style.display = "grid";
+        if (filterRow) filterRow.style.display = "flex";
+        renderNotes();
+    }
+}
 function renderNotes() {
 
     const grid = document.getElementById("notesGrid");
@@ -1470,6 +1532,9 @@ if (notesGridEl) {
         if (event.key === "Escape") {
             closeNewNoteModal();
             closeNoteViewer();
+            closeNewJournalModal();
+            closeNewLetterModal();
+            closeNewDateModal();
         }
     });
 
@@ -1477,5 +1542,861 @@ if (notesGridEl) {
 
         if (event.target.id === "newNoteModal") closeNewNoteModal();
         if (event.target.id === "noteViewerModal") closeNoteViewer();
+        if (event.target.id === "newJournalModal") closeNewJournalModal();
+        if (event.target.id === "newLetterModal") closeNewLetterModal();
+        if (event.target.id === "newDateModal") closeNewDateModal();
     });
+}
+// =========================================================
+// OUR JOURNAL
+// =========================================================
+
+let allJournalEntries = [];
+let selectedJournalMood = "🙂";
+let currentJournalAttachment = null;
+let currentJournalCategory = "us-and-me"; // tracks which section is active
+
+async function loadJournal() {
+
+    try {
+
+        const response = await fetch("/api/journal");
+        const data = await response.json();
+
+        allJournalEntries = data.entries || [];
+
+        renderJournalTimeline();
+
+    } catch (error) {
+        console.log("Load journal error:", error);
+    }
+}
+
+function renderJournalTimeline() {
+
+    const container = document.getElementById("journalTimeline");
+
+    if (!container) return;
+
+    if (allJournalEntries.length === 0) {
+
+        container.innerHTML = `
+            <div class="notes-empty">
+                No memories here yet.<br><br>
+                <button class="notes-new-btn" onclick="openNewJournalModal()">+ Create Entry</button>
+            </div>
+        `;
+        return;
+    }
+
+    const sorted = [...allJournalEntries].sort(function (a, b) {
+        return (b.date || "").localeCompare(a.date || "");
+    });
+
+    let html = "";
+    let lastMonth = null;
+
+    sorted.forEach(function (entry) {
+
+        const dateObj = new Date(entry.date + "T00:00:00");
+
+        const monthLabel = dateObj.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+
+        if (monthLabel !== lastMonth) {
+            html += `<div class="journal-month-heading">${monthLabel}</div>`;
+            lastMonth = monthLabel;
+        }
+
+        const day = dateObj.getDate();
+        const weekday = dateObj.toLocaleDateString(undefined, { weekday: "short" });
+
+        html += `
+            <div class="journal-entry" onclick="openJournalViewer('${entry.id}')">
+                <div class="journal-entry-date">
+                    <div class="journal-entry-day">${day}</div>
+                    <div class="journal-entry-weekday">${weekday}</div>
+                    <div class="journal-entry-mood">${entry.mood || "🙂"}</div>
+                </div>
+                <div class="journal-entry-body">
+                    <div class="journal-entry-text">${escapeHtml(entry.text || "")}</div>
+                    <div class="journal-entry-meta">${escapeHtml(entry.owner || "")} · ${entry.visibility === "shared" ? "Shared" : "Only Me"} ${entry.favorite ? "· ❤️" : ""}</div>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+
+// =========================
+// NEW JOURNAL MODAL
+// =========================
+
+function openNewJournalModal() {
+
+    document.getElementById("journalDateInput").value = new Date().toISOString().split("T")[0];
+
+    document.getElementById("newJournalModal").classList.add("show");
+}
+
+function closeNewJournalModal() {
+
+    document.getElementById("newJournalModal").classList.remove("show");
+    document.getElementById("journalTextInput").value = "";
+    document.getElementById("journalTagsInput").value = "";
+    document.getElementById("journalAttachStatus").textContent = "";
+    currentJournalAttachment = null;
+
+    document.querySelectorAll(".journal-mood-option").forEach(function (el) {
+        el.classList.remove("selected");
+    });
+
+    selectedJournalMood = "🙂";
+}
+
+function selectJournalMood(mood, el) {
+
+    selectedJournalMood = mood;
+
+    document.querySelectorAll(".journal-mood-option").forEach(function (o) {
+        o.classList.remove("selected");
+    });
+
+    el.classList.add("selected");
+}
+
+async function handleJournalAttachment(file) {
+
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    document.getElementById("journalAttachStatus").textContent = "Uploading...";
+
+    try {
+
+        const response = await fetch("/api/notes/upload-attachment", {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.attachment) {
+            currentJournalAttachment = data.attachment;
+            document.getElementById("journalAttachStatus").textContent = "✓ " + data.attachment.filename;
+        }
+
+    } catch (error) {
+        document.getElementById("journalAttachStatus").textContent = "Upload failed";
+    }
+}
+
+async function submitNewJournalEntry() {
+
+    const entryDate = document.getElementById("journalDateInput").value;
+    const text = document.getElementById("journalTextInput").value.trim();
+    const tagsRaw = document.getElementById("journalTagsInput").value.trim();
+    const visibility = document.querySelector('input[name="journalVisibility"]:checked').value;
+
+    if (!text) {
+        alert("Write something first!");
+        return;
+    }
+
+    const tags = tagsRaw ? tagsRaw.split(",").map(t => t.trim()).filter(Boolean) : [];
+
+    try {
+
+        const response = await fetch("/api/journal", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                date: entryDate,
+                mood: selectedJournalMood,
+                text: text,
+                tags: tags,
+                visibility: visibility,
+                attachment: currentJournalAttachment
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.entry) {
+            allJournalEntries.push(data.entry);
+            renderJournalTimeline();
+            closeNewJournalModal();
+        }
+
+    } catch (error) {
+        console.log("Create journal entry error:", error);
+    }
+}
+
+
+// =========================
+// JOURNAL VIEWER (reuses the note viewer modal)
+// =========================
+
+let currentViewerJournalId = null;
+
+function openJournalViewer(entryId) {
+
+    const entry = allJournalEntries.find(e => e.id === entryId);
+
+    if (!entry) return;
+
+    currentViewerJournalId = entryId;
+    currentViewerNoteId = null; // make sure note-delete doesn't get confused
+
+    document.getElementById("viewerPinBtn").style.display = "none";
+    document.getElementById("viewerLockBtn").style.display = "none";
+    document.getElementById("viewerFavBtn").style.display = "inline-flex";
+    document.getElementById("viewerFavBtn").classList.toggle("active", entry.favorite);
+    document.getElementById("viewerFavBtn").setAttribute("onclick", "toggleJournalFavorite()");
+
+    const attachmentHtml = entry.attachment
+        ? (entry.attachment.type === "image"
+            ? `<img src="${entry.attachment.url}" style="max-width:100%; border-radius:10px; margin-bottom:14px;">`
+            : `<a href="${entry.attachment.url}" target="_blank">📄 ${escapeHtml(entry.attachment.filename)}</a><br><br>`)
+        : "";
+
+    document.getElementById("noteViewerBody").innerHTML = `
+        <div class="notes-viewer-title">${entry.mood || "🙂"} ${escapeHtml(entry.date || "")}</div>
+        ${attachmentHtml}
+        <div class="notes-viewer-content">${escapeHtml(entry.text || "")}</div>
+        <div class="notes-viewer-tags">${(entry.tags || []).map(t => "#" + escapeHtml(t)).join(" ")}</div>
+        <div class="notes-viewer-meta">
+            Written by: ${escapeHtml(entry.owner || "")} · ${entry.visibility === "shared" ? "Shared" : "Only Me"}
+        </div>
+        <div class="notes-viewer-actions">
+            <button class="notes-modal-cancel" onclick="deleteCurrentJournalEntry()">Delete</button>
+        </div>
+    `;
+
+    document.getElementById("noteViewerModal").classList.add("show");
+}
+
+async function toggleJournalFavorite() {
+
+    if (!currentViewerJournalId) return;
+
+    try {
+
+        const response = await fetch(`/api/journal/${currentViewerJournalId}/toggle`, {
+            method: "POST"
+        });
+
+        const data = await response.json();
+
+        if (data.entry) {
+
+            const idx = allJournalEntries.findIndex(e => e.id === data.entry.id);
+            if (idx !== -1) allJournalEntries[idx] = data.entry;
+
+            renderJournalTimeline();
+            openJournalViewer(data.entry.id);
+        }
+
+    } catch (error) {
+        console.log("Toggle journal favorite error:", error);
+    }
+}
+
+async function deleteCurrentJournalEntry() {
+
+    if (!currentViewerJournalId) return;
+
+    const confirmDelete = confirm("Delete this journal entry? This cannot be undone.");
+
+    if (!confirmDelete) return;
+
+    try {
+
+        await fetch(`/api/journal/${currentViewerJournalId}`, { method: "DELETE" });
+
+        allJournalEntries = allJournalEntries.filter(e => e.id !== currentViewerJournalId);
+
+        renderJournalTimeline();
+        closeNoteViewer();
+
+        currentViewerJournalId = null;
+
+        // restore normal note-viewer buttons for next time it's used
+        document.getElementById("viewerPinBtn").style.display = "inline-flex";
+        document.getElementById("viewerLockBtn").style.display = "inline-flex";
+        document.getElementById("viewerFavBtn").setAttribute("onclick", "toggleViewerNoteField('favorite')");
+
+    } catch (error) {
+        console.log("Delete journal entry error:", error);
+    }
+}
+function openCorrectNewModal() {
+
+    if (currentJournalCategory === "journal") {
+        openNewJournalModal();
+    } else if (currentJournalCategory === "letters") {
+        openNewLetterModal();
+    } else if (currentJournalCategory === "dates") {
+        openNewDateModal();
+    } else {
+        openNewNoteModal();
+    }
+}
+// =========================================================
+// LETTERS
+// =========================================================
+
+let allLetters = [];
+let currentLetterAttachment = null;
+
+async function loadLetters() {
+
+    try {
+
+        const response = await fetch("/api/letters");
+        const data = await response.json();
+
+        allLetters = data.letters || [];
+
+        renderLettersGrid();
+
+    } catch (error) {
+        console.log("Load letters error:", error);
+    }
+}
+
+function daysUntil(dateStr) {
+
+    const target = new Date(dateStr + "T00:00:00");
+    const now = new Date();
+
+    const diffMs = target - now;
+
+    return Math.max(Math.ceil(diffMs / (1000 * 60 * 60 * 24)), 0);
+}
+
+function renderLettersGrid() {
+
+    const grid = document.getElementById("lettersGrid");
+
+    if (!grid) return;
+
+    if (allLetters.length === 0) {
+
+        grid.innerHTML = `
+            <div class="notes-empty">
+                No letters yet.<br><br>
+                <button class="notes-new-btn" onclick="openNewLetterModal()">+ Write a Letter</button>
+            </div>
+        `;
+        return;
+    }
+
+    grid.innerHTML = allLetters.map(function (letter) {
+
+        if (!letter.unlocked) {
+
+            return `
+                <div class="notes-card letters-card-locked" onclick="openLetterViewer('${letter.id}')">
+                    <div class="notes-card-title">🔒 ${escapeHtml(letter.title || "Untitled")}</div>
+                    <div>This letter is waiting to be opened.</div>
+                    <div class="letters-countdown">${daysUntil(letter.open_date)} day(s) remaining</div>
+                </div>
+            `;
+        }
+
+        const badges = [
+            letter.favorite ? "❤️" : "",
+            !letter.read ? "🆕" : "",
+            letter.visibility === "only-me" ? "👤" : "👥"
+        ].filter(Boolean).join(" ");
+
+        return `
+            <div class="notes-card" onclick="openLetterViewer('${letter.id}')">
+                <div class="notes-card-badges">${badges}</div>
+                <div class="notes-card-title">💌 ${escapeHtml(letter.title || "Untitled")}</div>
+                <div class="notes-card-preview">${escapeHtml((letter.content || "").slice(0, 120))}</div>
+                <div class="notes-card-meta">
+                    <span>${escapeHtml(letter.owner || "")}</span>
+                    <span>${escapeHtml(letter.created_at || "")}</span>
+                </div>
+            </div>
+        `;
+
+    }).join("");
+}
+
+
+// =========================
+// NEW LETTER MODAL
+// =========================
+
+function openNewLetterModal() {
+    document.getElementById("newLetterModal").classList.add("show");
+}
+
+function closeNewLetterModal() {
+    document.getElementById("newLetterModal").classList.remove("show");
+    document.getElementById("letterTitleInput").value = "";
+    document.getElementById("letterContentInput").value = "";
+    document.getElementById("letterOpenDateInput").value = "";
+    document.getElementById("letterAttachStatus").textContent = "";
+    currentLetterAttachment = null;
+}
+
+async function handleLetterAttachment(file) {
+
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    document.getElementById("letterAttachStatus").textContent = "Uploading...";
+
+    try {
+
+        const response = await fetch("/api/notes/upload-attachment", {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.attachment) {
+            currentLetterAttachment = data.attachment;
+            document.getElementById("letterAttachStatus").textContent = "✓ " + data.attachment.filename;
+        }
+
+    } catch (error) {
+        document.getElementById("letterAttachStatus").textContent = "Upload failed";
+    }
+}
+
+async function submitNewLetter() {
+
+    const title = document.getElementById("letterTitleInput").value.trim();
+    const content = document.getElementById("letterContentInput").value.trim();
+    const openDate = document.getElementById("letterOpenDateInput").value;
+    const visibility = document.querySelector('input[name="letterVisibility"]:checked').value;
+
+    if (!title && !content) {
+        alert("Write something first!");
+        return;
+    }
+
+    try {
+
+        const response = await fetch("/api/letters", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                title: title,
+                content: content,
+                open_date: openDate || null,
+                visibility: visibility,
+                attachment: currentLetterAttachment
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.letter) {
+            allLetters.push({ ...data.letter, unlocked: true });
+            renderLettersGrid();
+            closeNewLetterModal();
+        }
+
+    } catch (error) {
+        console.log("Create letter error:", error);
+    }
+}
+
+
+// =========================
+// LETTER VIEWER (reuses note viewer modal)
+// =========================
+
+let currentViewerLetterId = null;
+
+async function openLetterViewer(letterId) {
+
+    currentViewerLetterId = letterId;
+    currentViewerNoteId = null;
+    currentViewerJournalId = null;
+
+    try {
+
+        const response = await fetch(`/api/letters/${letterId}`);
+        const data = await response.json();
+
+        if (!data.letter) return;
+
+        const letter = data.letter;
+
+        const idx = allLetters.findIndex(l => l.id === letterId);
+        if (idx !== -1) allLetters[idx] = letter;
+
+        document.getElementById("viewerPinBtn").style.display = "none";
+        document.getElementById("viewerLockBtn").style.display = "none";
+        document.getElementById("viewerFavBtn").style.display = letter.unlocked ? "inline-flex" : "none";
+        document.getElementById("viewerFavBtn").classList.toggle("active", letter.favorite);
+        document.getElementById("viewerFavBtn").setAttribute("onclick", "toggleLetterFavorite()");
+
+        const body = document.getElementById("noteViewerBody");
+
+        if (!letter.unlocked) {
+
+            body.innerHTML = `
+                <div class="notes-locked-banner">
+                    🔒 This letter is waiting to be opened.<br><br>
+                    ${daysUntil(letter.open_date)} day(s) remaining
+                </div>
+            `;
+
+        } else {
+
+            const attachmentHtml = letter.attachment
+                ? (letter.attachment.type === "image"
+                    ? `<img src="${letter.attachment.url}" style="max-width:100%; border-radius:10px; margin-bottom:14px;">`
+                    : `<a href="${letter.attachment.url}" target="_blank">📄 ${escapeHtml(letter.attachment.filename)}</a><br><br>`)
+                : "";
+
+            body.innerHTML = `
+                <div class="notes-viewer-title">💌 ${escapeHtml(letter.title || "Untitled")}</div>
+                ${attachmentHtml}
+                <div class="notes-viewer-content">${escapeHtml(letter.content || "")}</div>
+                <div class="notes-viewer-meta">
+                    From: ${escapeHtml(letter.owner || "")} · ${letter.visibility === "shared" ? "Shared" : "Only Me"} · ${escapeHtml(letter.created_at || "")}
+                </div>
+                <div class="notes-viewer-actions">
+                    <button class="notes-modal-cancel" onclick="deleteCurrentLetter()">Delete</button>
+                </div>
+            `;
+        }
+
+        document.getElementById("noteViewerModal").classList.add("show");
+
+        renderLettersGrid();
+
+    } catch (error) {
+        console.log("Open letter error:", error);
+    }
+}
+
+async function toggleLetterFavorite() {
+
+    if (!currentViewerLetterId) return;
+
+    try {
+
+        const response = await fetch(`/api/letters/${currentViewerLetterId}/toggle`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ field: "favorite" })
+        });
+
+        const data = await response.json();
+
+        if (data.letter) {
+
+            const idx = allLetters.findIndex(l => l.id === data.letter.id);
+            if (idx !== -1) allLetters[idx] = { ...allLetters[idx], favorite: data.letter.favorite };
+
+            renderLettersGrid();
+            openLetterViewer(data.letter.id);
+        }
+
+    } catch (error) {
+        console.log("Toggle letter favorite error:", error);
+    }
+}
+
+async function deleteCurrentLetter() {
+
+    if (!currentViewerLetterId) return;
+
+    const confirmDelete = confirm("Delete this letter? This cannot be undone.");
+
+    if (!confirmDelete) return;
+
+    try {
+
+        await fetch(`/api/letters/${currentViewerLetterId}`, { method: "DELETE" });
+
+        allLetters = allLetters.filter(l => l.id !== currentViewerLetterId);
+
+        renderLettersGrid();
+        closeNoteViewer();
+
+        currentViewerLetterId = null;
+
+        document.getElementById("viewerPinBtn").style.display = "inline-flex";
+        document.getElementById("viewerLockBtn").style.display = "inline-flex";
+        document.getElementById("viewerFavBtn").setAttribute("onclick", "toggleViewerNoteField('favorite')");
+
+    } catch (error) {
+        console.log("Delete letter error:", error);
+    }
+}
+// =========================================================
+// IMPORTANT DATES
+// =========================================================
+
+let allDates = [];
+let currentDateAttachment = null;
+let currentViewerDateId = null;
+
+async function loadDates() {
+
+    try {
+
+        const response = await fetch("/api/dates");
+        const data = await response.json();
+
+        allDates = data.dates || [];
+
+        renderDatesGrid();
+
+    } catch (error) {
+        console.log("Load dates error:", error);
+    }
+}
+
+function getNextOccurrence(dateStr, repeatYearly) {
+
+    const original = new Date(dateStr + "T00:00:00");
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (!repeatYearly) {
+        return original;
+    }
+
+    const next = new Date(today.getFullYear(), original.getMonth(), original.getDate());
+
+    if (next < today) {
+        next.setFullYear(next.getFullYear() + 1);
+    }
+
+    return next;
+}
+
+function daysUntilDate(dateStr, repeatYearly) {
+
+    const target = getNextOccurrence(dateStr, repeatYearly);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const diffMs = target - today;
+
+    return Math.round(diffMs / (1000 * 60 * 60 * 24));
+}
+
+function renderDatesGrid() {
+
+    const grid = document.getElementById("datesGrid");
+
+    if (!grid) return;
+
+    if (allDates.length === 0) {
+
+        grid.innerHTML = `
+            <div class="notes-empty">
+                No important dates yet.<br><br>
+                <button class="notes-new-btn" onclick="openNewDateModal()">+ Add Date</button>
+            </div>
+        `;
+        return;
+    }
+
+    const sorted = [...allDates].sort(function (a, b) {
+        return daysUntilDate(a.date, a.repeat_yearly) - daysUntilDate(b.date, b.repeat_yearly);
+    });
+
+    grid.innerHTML = sorted.map(function (entry) {
+
+        const daysLeft = daysUntilDate(entry.date, entry.repeat_yearly);
+
+        const todayBadge = daysLeft === 0 ? `<div class="dates-today-badge">🎉 Today!</div>` : "";
+
+        const daysLabel = daysLeft < 0
+            ? `${Math.abs(daysLeft)} day(s) ago`
+            : `${daysLeft} day(s) remaining`;
+
+        return `
+            <div class="notes-card dates-countdown-card" onclick="openDateViewer('${entry.id}')">
+                <div class="dates-countdown-icon">📅</div>
+                <div class="notes-card-title">${escapeHtml(entry.title || "Untitled")}</div>
+                <div class="dates-countdown-number">${daysLeft >= 0 ? daysLeft : Math.abs(daysLeft)}</div>
+                <div class="dates-countdown-label">${daysLabel}</div>
+                ${todayBadge}
+            </div>
+        `;
+
+    }).join("");
+}
+
+
+// =========================
+// NEW DATE MODAL
+// =========================
+
+function openNewDateModal() {
+    document.getElementById("newDateModal").classList.add("show");
+}
+
+function closeNewDateModal() {
+    document.getElementById("newDateModal").classList.remove("show");
+    document.getElementById("dateTitleInput").value = "";
+    document.getElementById("dateValueInput").value = "";
+    document.getElementById("dateDescriptionInput").value = "";
+    document.getElementById("dateRepeatInput").checked = false;
+    document.getElementById("dateAttachStatus").textContent = "";
+    currentDateAttachment = null;
+}
+
+async function handleDateAttachment(file) {
+
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    document.getElementById("dateAttachStatus").textContent = "Uploading...";
+
+    try {
+
+        const response = await fetch("/api/notes/upload-attachment", {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.attachment) {
+            currentDateAttachment = data.attachment;
+            document.getElementById("dateAttachStatus").textContent = "✓ " + data.attachment.filename;
+        }
+
+    } catch (error) {
+        document.getElementById("dateAttachStatus").textContent = "Upload failed";
+    }
+}
+
+async function submitNewDate() {
+
+    const title = document.getElementById("dateTitleInput").value.trim();
+    const dateValue = document.getElementById("dateValueInput").value;
+    const description = document.getElementById("dateDescriptionInput").value.trim();
+    const repeatYearly = document.getElementById("dateRepeatInput").checked;
+    const visibility = document.querySelector('input[name="dateVisibility"]:checked').value;
+
+    if (!title || !dateValue) {
+        alert("Please enter a title and a date.");
+        return;
+    }
+
+    try {
+
+        const response = await fetch("/api/dates", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                title: title,
+                date: dateValue,
+                description: description,
+                repeat_yearly: repeatYearly,
+                visibility: visibility,
+                attachment: currentDateAttachment
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.date) {
+            allDates.push(data.date);
+            renderDatesGrid();
+            closeNewDateModal();
+        }
+
+    } catch (error) {
+        console.log("Create date error:", error);
+    }
+}
+
+
+// =========================
+// DATE VIEWER (reuses note viewer modal)
+// =========================
+
+function openDateViewer(entryId) {
+
+    const entry = allDates.find(d => d.id === entryId);
+
+    if (!entry) return;
+
+    currentViewerDateId = entryId;
+    currentViewerNoteId = null;
+    currentViewerJournalId = null;
+    currentViewerLetterId = null;
+
+    document.getElementById("viewerPinBtn").style.display = "none";
+    document.getElementById("viewerFavBtn").style.display = "none";
+    document.getElementById("viewerLockBtn").style.display = "none";
+
+    const daysLeft = daysUntilDate(entry.date, entry.repeat_yearly);
+
+    const attachmentHtml = entry.attachment
+        ? (entry.attachment.type === "image"
+            ? `<img src="${entry.attachment.url}" style="max-width:100%; border-radius:10px; margin-bottom:14px;">`
+            : `<a href="${entry.attachment.url}" target="_blank">📄 ${escapeHtml(entry.attachment.filename)}</a><br><br>`)
+        : "";
+
+    document.getElementById("noteViewerBody").innerHTML = `
+        <div class="notes-viewer-title">📅 ${escapeHtml(entry.title || "Untitled")}</div>
+        ${attachmentHtml}
+        <div class="notes-viewer-content">${escapeHtml(entry.description || "")}</div>
+        <div class="notes-viewer-meta">
+            ${escapeHtml(entry.date || "")} ${entry.repeat_yearly ? "· Repeats yearly" : ""} · ${daysLeft >= 0 ? daysLeft + " day(s) remaining" : Math.abs(daysLeft) + " day(s) ago"}<br>
+            Added by: ${escapeHtml(entry.owner || "")} · ${entry.visibility === "shared" ? "Shared" : "Only Me"}
+        </div>
+        <div class="notes-viewer-actions">
+            <button class="notes-modal-cancel" onclick="deleteCurrentDate()">Delete</button>
+        </div>
+    `;
+
+    document.getElementById("noteViewerModal").classList.add("show");
+}
+
+async function deleteCurrentDate() {
+
+    if (!currentViewerDateId) return;
+
+    const confirmDelete = confirm("Delete this date? This cannot be undone.");
+
+    if (!confirmDelete) return;
+
+    try {
+
+        await fetch(`/api/dates/${currentViewerDateId}`, { method: "DELETE" });
+
+        allDates = allDates.filter(d => d.id !== currentViewerDateId);
+
+        renderDatesGrid();
+        closeNoteViewer();
+
+        currentViewerDateId = null;
+
+        document.getElementById("viewerPinBtn").style.display = "inline-flex";
+        document.getElementById("viewerFavBtn").style.display = "inline-flex";
+        document.getElementById("viewerLockBtn").style.display = "inline-flex";
+        document.getElementById("viewerFavBtn").setAttribute("onclick", "toggleViewerNoteField('favorite')");
+
+    } catch (error) {
+        console.log("Delete date error:", error);
+    }
 }

@@ -80,9 +80,377 @@ AVATARS_PUBLIC_ID = "private-vault-meta/avatars"
 # =========================================================
 
 NOTES_PUBLIC_ID = "private-vault-meta/notes"
+JOURNAL_PUBLIC_ID = "private-vault-meta/journal"
 NOTES_ATTACHMENTS_FOLDER = "private-vault-notes"
+LETTERS_PUBLIC_ID = "private-vault-meta/letters"
+DATES_PUBLIC_ID = "private-vault-meta/important_dates"
+
+JOURNAL_CACHE = None
+JOURNAL_LOCK = threading.Lock()
 
 
+def load_journal():
+
+    global JOURNAL_CACHE
+
+    with JOURNAL_LOCK:
+
+        if JOURNAL_CACHE is None:
+            JOURNAL_CACHE = load_json_store(JOURNAL_PUBLIC_ID)
+
+        return list(JOURNAL_CACHE)
+
+
+def save_journal(entries):
+
+    global JOURNAL_CACHE
+
+    with JOURNAL_LOCK:
+        JOURNAL_CACHE = list(entries)
+
+    threading.Thread(target=save_json_store, args=(JOURNAL_PUBLIC_ID, entries)).start()
+
+
+def get_visible_journal(identity_name):
+
+    entries = load_journal()
+
+    return [
+        e for e in entries
+        if e.get("visibility") == "shared" or e.get("owner") == identity_name
+    ]
+
+
+def can_modify_journal(entry, identity_name):
+
+    if entry.get("visibility") == "shared":
+        return True
+
+    return entry.get("owner") == identity_name
+
+
+def add_journal_entry(entry_date, mood, text, tags, visibility, owner, attachment=None):
+
+    entries = load_journal()
+
+    now = datetime.now().strftime("%d %b, %I:%M %p")
+
+    entry = {
+        "id": secrets.token_hex(6),
+        "date": entry_date,
+        "mood": mood,
+        "text": text,
+        "tags": tags,
+        "visibility": visibility,
+        "owner": owner,
+        "favorite": False,
+        "attachment": attachment,
+        "created_at": now,
+        "updated_at": now
+    }
+
+    entries.append(entry)
+
+    save_journal(entries)
+
+    return entry
+
+
+def find_journal_entry(entries, entry_id):
+
+    for e in entries:
+        if e.get("id") == entry_id:
+            return e
+
+    return None
+LETTERS_CACHE = None
+LETTERS_LOCK = threading.Lock()
+
+
+def load_letters():
+
+    global LETTERS_CACHE
+
+    with LETTERS_LOCK:
+
+        if LETTERS_CACHE is None:
+            LETTERS_CACHE = load_json_store(LETTERS_PUBLIC_ID)
+
+        return list(LETTERS_CACHE)
+
+
+def save_letters(letters):
+
+    global LETTERS_CACHE
+
+    with LETTERS_LOCK:
+        LETTERS_CACHE = list(letters)
+
+    threading.Thread(target=save_json_store, args=(LETTERS_PUBLIC_ID, letters)).start()
+
+
+def get_visible_letters(identity_name):
+
+    letters = load_letters()
+
+    return [
+        l for l in letters
+        if l.get("visibility") == "shared" or l.get("owner") == identity_name
+    ]
+
+
+def can_modify_letter(letter, identity_name):
+
+    if letter.get("visibility") == "shared":
+        return True
+
+    return letter.get("owner") == identity_name
+
+
+def is_letter_unlocked(letter):
+
+    open_date = letter.get("open_date")
+
+    if not open_date:
+        return True
+
+    try:
+        target = datetime.strptime(open_date, "%Y-%m-%d").date()
+    except Exception:
+        return True
+
+    return datetime.now().date() >= target
+
+
+def strip_letter_content(letter):
+    # Real server-side gating: locked letters never send their
+    # actual content/attachment to the browser at all.
+
+    safe = dict(letter)
+    safe["content"] = None
+    safe["attachment"] = None
+    safe["unlocked"] = False
+
+    return safe
+
+
+def find_letter(letters, letter_id):
+
+    for l in letters:
+        if l.get("id") == letter_id:
+            return l
+
+    return None
+@app.route("/api/letters")
+def api_get_letters():
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    letters = get_visible_letters(identity_name)
+
+    result = []
+
+    for letter in letters:
+
+        if is_letter_unlocked(letter):
+            l = dict(letter)
+            l["unlocked"] = True
+            result.append(l)
+        else:
+            result.append(strip_letter_content(letter))
+
+    return jsonify({"letters": result})
+
+DATES_CACHE = None
+DATES_LOCK = threading.Lock()
+
+
+def load_dates():
+
+    global DATES_CACHE
+
+    with DATES_LOCK:
+
+        if DATES_CACHE is None:
+            DATES_CACHE = load_json_store(DATES_PUBLIC_ID)
+
+        return list(DATES_CACHE)
+
+
+def save_dates(dates):
+
+    global DATES_CACHE
+
+    with DATES_LOCK:
+        DATES_CACHE = list(dates)
+
+    threading.Thread(target=save_json_store, args=(DATES_PUBLIC_ID, dates)).start()
+
+
+def get_visible_dates(identity_name):
+
+    dates = load_dates()
+
+    return [
+        d for d in dates
+        if d.get("visibility") == "shared" or d.get("owner") == identity_name
+    ]
+
+
+def can_modify_date(entry, identity_name):
+
+    if entry.get("visibility") == "shared":
+        return True
+
+    return entry.get("owner") == identity_name
+
+
+def find_date_entry(dates, entry_id):
+
+    for d in dates:
+        if d.get("id") == entry_id:
+            return d
+
+    return None
+@app.route("/api/letters", methods=["POST"])
+def api_create_letter():
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    data = request.get_json(silent=True) or {}
+
+    title = (data.get("title") or "").strip()
+    content = (data.get("content") or "").strip()
+    open_date = (data.get("open_date") or "").strip() or None
+    visibility = data.get("visibility", "shared")
+    attachment = data.get("attachment")
+
+    if not title and not content:
+        return jsonify({"error": "Write something first"}), 400
+
+    if visibility not in ("shared", "only-me"):
+        visibility = "shared"
+
+    owner = session.get("identity_name", "Someone")
+
+    letters = load_letters()
+
+    now = datetime.now().strftime("%d %b, %I:%M %p")
+
+    letter = {
+        "id": secrets.token_hex(6),
+        "title": title,
+        "content": content,
+        "attachment": attachment,
+        "open_date": open_date,
+        "visibility": visibility,
+        "owner": owner,
+        "favorite": False,
+        "read": False,
+        "created_at": now,
+        "updated_at": now
+    }
+
+    letters.append(letter)
+
+    save_letters(letters)
+
+    return jsonify({"letter": letter})
+
+
+@app.route("/api/letters/<letter_id>")
+def api_open_letter(letter_id):
+    # Fetching a single letter is the real "unlock" moment -
+    # date is checked again here, server-side, and read gets
+    # marked true only once it's actually opened.
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    letters = load_letters()
+
+    letter = find_letter(letters, letter_id)
+
+    if not letter:
+        return jsonify({"error": "Letter not found"}), 404
+
+    if letter.get("visibility") == "only-me" and letter.get("owner") != identity_name:
+        return jsonify({"error": "Not allowed"}), 403
+
+    if not is_letter_unlocked(letter):
+        return jsonify({"letter": strip_letter_content(letter)})
+
+    if not letter.get("read"):
+        letter["read"] = True
+        save_letters(letters)
+
+    result = dict(letter)
+    result["unlocked"] = True
+
+    return jsonify({"letter": result})
+
+
+@app.route("/api/letters/<letter_id>/toggle", methods=["POST"])
+def api_toggle_letter(letter_id):
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    data = request.get_json(silent=True) or {}
+
+    field = data.get("field")
+
+    if field not in ("favorite",):
+        return jsonify({"error": "Invalid field"}), 400
+
+    letters = load_letters()
+
+    letter = find_letter(letters, letter_id)
+
+    if not letter:
+        return jsonify({"error": "Letter not found"}), 404
+
+    if not can_modify_letter(letter, identity_name):
+        return jsonify({"error": "Not allowed"}), 403
+
+    letter[field] = not letter.get(field, False)
+
+    save_letters(letters)
+
+    return jsonify({"letter": letter})
+
+
+@app.route("/api/letters/<letter_id>", methods=["DELETE"])
+def api_delete_letter(letter_id):
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    letters = load_letters()
+
+    letter = find_letter(letters, letter_id)
+
+    if not letter:
+        return jsonify({"error": "Letter not found"}), 404
+
+    if not can_modify_letter(letter, identity_name):
+        return jsonify({"error": "Not allowed"}), 403
+
+    letters = [l for l in letters if l.get("id") != letter_id]
+
+    save_letters(letters)
+
+    return jsonify({"success": True})
 # =========================================================
 # NOTES STORAGE (add near your CHAT_CACHE section)
 # =========================================================
@@ -188,7 +556,140 @@ def notes_page():
         current_avatar=current_avatar
     )
 
+@app.route("/api/journal")
+def api_get_journal():
 
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    entries = get_visible_journal(identity_name)
+
+    return jsonify({"entries": entries})
+
+
+@app.route("/api/journal", methods=["POST"])
+def api_create_journal():
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    data = request.get_json(silent=True) or {}
+
+    entry_date = (data.get("date") or "").strip()
+    mood = data.get("mood", "🙂")
+    text = (data.get("text") or "").strip()
+    tags = data.get("tags", [])
+    visibility = data.get("visibility", "shared")
+    attachment = data.get("attachment")
+
+    if not entry_date:
+        entry_date = datetime.now().strftime("%Y-%m-%d")
+
+    if not text:
+        return jsonify({"error": "Write something first"}), 400
+
+    if visibility not in ("shared", "only-me"):
+        visibility = "shared"
+
+    owner = session.get("identity_name", "Someone")
+
+    entry = add_journal_entry(entry_date, mood, text, tags, visibility, owner, attachment)
+
+    return jsonify({"entry": entry})
+
+
+@app.route("/api/journal/<entry_id>", methods=["PUT"])
+def api_update_journal(entry_id):
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    entries = load_journal()
+
+    entry = find_journal_entry(entries, entry_id)
+
+    if not entry:
+        return jsonify({"error": "Entry not found"}), 404
+
+    if not can_modify_journal(entry, identity_name):
+        return jsonify({"error": "Not allowed"}), 403
+
+    data = request.get_json(silent=True) or {}
+
+    if "text" in data:
+        entry["text"] = (data.get("text") or "").strip()
+
+    if "mood" in data:
+        entry["mood"] = data.get("mood")
+
+    if "tags" in data:
+        entry["tags"] = data.get("tags") or []
+
+    if "date" in data and data["date"]:
+        entry["date"] = data["date"]
+
+    if "visibility" in data and data["visibility"] in ("shared", "only-me"):
+        entry["visibility"] = data["visibility"]
+
+    entry["updated_at"] = datetime.now().strftime("%d %b, %I:%M %p")
+
+    save_journal(entries)
+
+    return jsonify({"entry": entry})
+
+
+@app.route("/api/journal/<entry_id>/toggle", methods=["POST"])
+def api_toggle_journal(entry_id):
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    entries = load_journal()
+
+    entry = find_journal_entry(entries, entry_id)
+
+    if not entry:
+        return jsonify({"error": "Entry not found"}), 404
+
+    if not can_modify_journal(entry, identity_name):
+        return jsonify({"error": "Not allowed"}), 403
+
+    entry["favorite"] = not entry.get("favorite", False)
+
+    save_journal(entries)
+
+    return jsonify({"entry": entry})
+
+
+@app.route("/api/journal/<entry_id>", methods=["DELETE"])
+def api_delete_journal(entry_id):
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    entries = load_journal()
+
+    entry = find_journal_entry(entries, entry_id)
+
+    if not entry:
+        return jsonify({"error": "Entry not found"}), 404
+
+    if not can_modify_journal(entry, identity_name):
+        return jsonify({"error": "Not allowed"}), 403
+
+    entries = [e for e in entries if e.get("id") != entry_id]
+
+    save_journal(entries)
+
+    return jsonify({"success": True})
 # =========================================================
 # NOTES API - LIST
 # =========================================================

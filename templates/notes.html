@@ -12,6 +12,13 @@
 
     <link rel="stylesheet"
           href="{{ url_for('static', filename='style.css') }}">
+          <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+<script type="module">
+    import { AvaturnSDK } from "https://cdn.jsdelivr.net/npm/@avaturn/sdk/dist/index.js";
+    window.AvaturnSDK = AvaturnSDK;
+</script>
 
 </head>
 
@@ -84,7 +91,7 @@
                     placeholder="🔍 Search your memories..."
                 >
 
-                <button class="notes-new-btn" onclick="openNewNoteModal()">+ New</button>
+                <button class="notes-new-btn" onclick="openCorrectNewModal()">+ New</button>
 
             </div>
 
@@ -102,23 +109,20 @@
                 <span class="notes-category-label">Us & Me</span>
             </div>
 
-            <div class="notes-category-card notes-category-soon">
-                <span class="notes-category-icon">📔</span>
-                <span class="notes-category-label">Our Journal</span>
-                <span class="notes-soon-tag">Coming soon</span>
-            </div>
+<div class="notes-category-card" data-category="journal" onclick="setNotesCategory('journal', this)">
+    <span class="notes-category-icon">📔</span>
+    <span class="notes-category-label">Our Journal</span>
+</div>
 
-            <div class="notes-category-card notes-category-soon">
-                <span class="notes-category-icon">💌</span>
-                <span class="notes-category-label">Letters</span>
-                <span class="notes-soon-tag">Coming soon</span>
-            </div>
+            <div class="notes-category-card" data-category="letters" onclick="setNotesCategory('letters', this)">
+    <span class="notes-category-icon">💌</span>
+    <span class="notes-category-label">Letters</span>
+</div>
 
-            <div class="notes-category-card notes-category-soon">
-                <span class="notes-category-icon">📅</span>
-                <span class="notes-category-label">Important Dates</span>
-                <span class="notes-soon-tag">Coming soon</span>
-            </div>
+<div class="notes-category-card" data-category="dates" onclick="setNotesCategory('dates', this)">
+    <span class="notes-category-icon">📅</span>
+    <span class="notes-category-label">Important Dates</span>
+</div>
 
             <div class="notes-category-card notes-category-soon">
                 <span class="notes-category-icon">🎯</span>
@@ -167,10 +171,13 @@
              NOTES LIST
         ========================= -->
 
-        <div class="notes-grid" id="notesGrid">
-            <div class="notes-empty">Loading your notes...</div>
-        </div>
+<div class="notes-grid" id="notesGrid">
+    <div class="notes-empty">Loading your notes...</div>
+</div>
 
+<div class="journal-timeline" id="journalTimeline" style="display:none;"></div>
+<div class="notes-grid" id="lettersGrid" style="display:none;"></div>
+<div class="notes-grid" id="datesGrid" style="display:none;"></div>
     </main>
 
 
@@ -232,7 +239,125 @@
 
     </div>
 
+<!-- =========================
+     NEW JOURNAL ENTRY MODAL
+========================= -->
 
+<div class="notes-modal" id="newJournalModal">
+
+    <div class="notes-modal-inner">
+
+        <div class="notes-modal-title">New Journal Entry</div>
+
+        <input type="date" id="journalDateInput" class="notes-form-input">
+
+        <div class="journal-mood-row">
+            <span class="journal-mood-option" onclick="selectJournalMood('😄', this)">😄</span>
+            <span class="journal-mood-option" onclick="selectJournalMood('🙂', this)">🙂</span>
+            <span class="journal-mood-option" onclick="selectJournalMood('😐', this)">😐</span>
+            <span class="journal-mood-option" onclick="selectJournalMood('😔', this)">😔</span>
+            <span class="journal-mood-option" onclick="selectJournalMood('😢', this)">😢</span>
+            <span class="journal-mood-option" onclick="selectJournalMood('🥰', this)">🥰</span>
+        </div>
+
+        <textarea id="journalTextInput" class="notes-form-textarea" placeholder="How was your day?" rows="6"></textarea>
+
+        <input type="text" id="journalTagsInput" class="notes-form-input" placeholder="Tags (comma separated)">
+
+        <div class="notes-visibility-row">
+            <label><input type="radio" name="journalVisibility" value="shared" checked> Shared</label>
+            <label><input type="radio" name="journalVisibility" value="only-me"> Only Me</label>
+        </div>
+
+        <div class="notes-attachment-row">
+            <button type="button" class="notes-attach-btn" onclick="document.getElementById('journalAttachInput').click()">📎 Attach</button>
+            <input type="file" id="journalAttachInput" style="display:none;" onchange="handleJournalAttachment(this.files[0])">
+            <span id="journalAttachStatus"></span>
+        </div>
+
+        <div class="notes-modal-actions">
+            <button type="button" class="notes-modal-cancel" onclick="closeNewJournalModal()">Cancel</button>
+            <button type="button" class="notes-modal-save" onclick="submitNewJournalEntry()">Save Entry</button>
+        </div>
+
+    </div>
+
+</div>
+<!-- =========================
+     NEW LETTER MODAL
+========================= -->
+
+<div class="notes-modal" id="newLetterModal">
+
+    <div class="notes-modal-inner">
+
+        <div class="notes-modal-title">Write a Letter</div>
+
+        <input type="text" id="letterTitleInput" class="notes-form-input" placeholder="Letter title">
+
+        <textarea id="letterContentInput" class="notes-form-textarea" placeholder="Dear..." rows="7"></textarea>
+
+        <label class="letter-opendate-label">Open on date (optional)</label>
+        <input type="date" id="letterOpenDateInput" class="notes-form-input">
+
+        <div class="notes-visibility-row">
+            <label><input type="radio" name="letterVisibility" value="shared" checked> Shared</label>
+            <label><input type="radio" name="letterVisibility" value="only-me"> Only Me</label>
+        </div>
+
+        <div class="notes-attachment-row">
+            <button type="button" class="notes-attach-btn" onclick="document.getElementById('letterAttachInput').click()">📎 Attach</button>
+            <input type="file" id="letterAttachInput" style="display:none;" onchange="handleLetterAttachment(this.files[0])">
+            <span id="letterAttachStatus"></span>
+        </div>
+
+        <div class="notes-modal-actions">
+            <button type="button" class="notes-modal-cancel" onclick="closeNewLetterModal()">Cancel</button>
+            <button type="button" class="notes-modal-save" onclick="submitNewLetter()">Seal Letter</button>
+        </div>
+
+    </div>
+
+</div>
+<!-- =========================
+     NEW IMPORTANT DATE MODAL
+========================= -->
+
+<div class="notes-modal" id="newDateModal">
+
+    <div class="notes-modal-inner">
+
+        <div class="notes-modal-title">Add Important Date</div>
+
+        <input type="text" id="dateTitleInput" class="notes-form-input" placeholder="Event title (e.g. Our Anniversary)">
+
+        <input type="date" id="dateValueInput" class="notes-form-input">
+
+        <textarea id="dateDescriptionInput" class="notes-form-textarea" placeholder="Description (optional)" rows="3"></textarea>
+
+        <label class="notes-repeat-label">
+            <input type="checkbox" id="dateRepeatInput"> Repeats every year
+        </label>
+
+        <div class="notes-visibility-row">
+            <label><input type="radio" name="dateVisibility" value="shared" checked> Shared</label>
+            <label><input type="radio" name="dateVisibility" value="only-me"> Only Me</label>
+        </div>
+
+        <div class="notes-attachment-row">
+            <button type="button" class="notes-attach-btn" onclick="document.getElementById('dateAttachInput').click()">📎 Attach Photo</button>
+            <input type="file" id="dateAttachInput" style="display:none;" onchange="handleDateAttachment(this.files[0])">
+            <span id="dateAttachStatus"></span>
+        </div>
+
+        <div class="notes-modal-actions">
+            <button type="button" class="notes-modal-cancel" onclick="closeNewDateModal()">Cancel</button>
+            <button type="button" class="notes-modal-save" onclick="submitNewDate()">Save Date</button>
+        </div>
+
+    </div>
+
+</div>
     <script>
         const CURRENT_IDENTITY = "{{ identity_name }}";
     </script>
