@@ -3959,3 +3959,26 @@ body {
     cursor: pointer;
     font-size: 12px;
 }
+/* =========================
+   WISHLIST
+========================= */
+
+.wishlist-category-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: var(--hover-fill);
+    color: var(--accent);
+    font-size: 10px;
+    text-transform: uppercase;
+}
+
+.wishlist-completed .notes-card-title {
+    text-decoration: line-through;
+    color: var(--text-muted-2);
+}
+
+.wishlist-link {
+    font-size: 12px;
+    color: var(--accent);
+}

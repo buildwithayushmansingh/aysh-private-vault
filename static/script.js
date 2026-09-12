@@ -888,6 +888,7 @@ document.addEventListener("keydown", function (event) {
         closeNewLetterModal();
         closeNewDateModal();
         closeNewPlanModal();
+        closeNewWishlistModal();
     }
 });
 
@@ -899,6 +900,7 @@ document.addEventListener("click", function (event) {
     if (event.target.id === "newLetterModal") closeNewLetterModal();
     if (event.target.id === "newDateModal") closeNewDateModal();
     if (event.target.id === "newPlanModal") closeNewPlanModal();
+    if (event.target.id === "newWishlistModal") closeNewWishlistModal();
 });
 // =========================
 // VAULT DOCK — SLIDING PILL INDICATOR
@@ -1145,6 +1147,7 @@ function setNotesCategory(category, cardEl) {
     const lettersGrid = document.getElementById("lettersGrid");
     const datesGrid = document.getElementById("datesGrid");
     const plansGrid = document.getElementById("plansGrid");
+    const wishlistGrid = document.getElementById("wishlistGrid");
     const filterRow = document.querySelector(".notes-filter-row");
 
     notesGrid.style.display = "none";
@@ -1152,6 +1155,7 @@ function setNotesCategory(category, cardEl) {
     lettersGrid.style.display = "none";
     datesGrid.style.display = "none";
     plansGrid.style.display = "none";
+    wishlistGrid.style.display = "none";
     if (filterRow) filterRow.style.display = "none";
 
     if (category === "journal") {
@@ -1173,6 +1177,11 @@ function setNotesCategory(category, cardEl) {
 
         plansGrid.style.display = "grid";
         loadPlans();
+
+    } else if (category === "wishlist") {
+
+        wishlistGrid.style.display = "grid";
+        loadWishlist();
 
     } else {
 
@@ -1815,6 +1824,8 @@ function openCorrectNewModal() {
         openNewDateModal();
     } else if (currentJournalCategory === "plans") {
         openNewPlanModal();
+    } else if (currentJournalCategory === "wishlist") {
+        openNewWishlistModal();
     } else {
         openNewNoteModal();
     }
@@ -2671,5 +2682,266 @@ async function deleteCurrentPlan() {
 
     } catch (error) {
         console.log("Delete plan error:", error);
+    }
+}
+// =========================================================
+// WISHLIST
+// =========================================================
+
+let allWishlistItems = [];
+let currentWishlistAttachment = null;
+let currentViewerWishlistId = null;
+
+async function loadWishlist() {
+
+    try {
+
+        const response = await fetch("/api/wishlist");
+        const data = await response.json();
+
+        allWishlistItems = data.items || [];
+
+        renderWishlistGrid();
+
+    } catch (error) {
+        console.log("Load wishlist error:", error);
+    }
+}
+
+function renderWishlistGrid() {
+
+    const grid = document.getElementById("wishlistGrid");
+
+    if (!grid) return;
+
+    if (allWishlistItems.length === 0) {
+
+        grid.innerHTML = `
+            <div class="notes-empty">
+                Nothing on the wishlist yet.<br><br>
+                <button class="notes-new-btn" onclick="openNewWishlistModal()">+ Add Item</button>
+            </div>
+        `;
+        return;
+    }
+
+    grid.innerHTML = allWishlistItems.map(function (item) {
+
+        const badges = [
+            item.favorite ? "❤️" : "",
+            item.completed ? "✅" : "",
+            item.visibility === "only-me" ? "👤" : "👥"
+        ].filter(Boolean).join(" ");
+
+        return `
+            <div class="notes-card ${item.completed ? "wishlist-completed" : ""}" onclick="openWishlistViewer('${item.id}')">
+                <div class="notes-card-badges">${badges}</div>
+                <div class="wishlist-category-tag">${escapeHtml(item.category || "Other")}</div>
+                <div class="notes-card-title">🎁 ${escapeHtml(item.title || "Untitled")}</div>
+                <div class="notes-card-preview">${escapeHtml((item.description || "").slice(0, 100))}</div>
+                <div class="notes-card-meta">
+                    <span>${escapeHtml(item.owner || "")}</span>
+                    <span>${escapeHtml(item.created_at || "")}</span>
+                </div>
+            </div>
+        `;
+
+    }).join("");
+}
+
+
+// =========================
+// NEW WISHLIST MODAL
+// =========================
+
+function openNewWishlistModal() {
+    document.getElementById("newWishlistModal").classList.add("show");
+}
+
+function closeNewWishlistModal() {
+    document.getElementById("newWishlistModal").classList.remove("show");
+    document.getElementById("wishlistTitleInput").value = "";
+    document.getElementById("wishlistDescriptionInput").value = "";
+    document.getElementById("wishlistLinkInput").value = "";
+    document.getElementById("wishlistAttachStatus").textContent = "";
+    currentWishlistAttachment = null;
+}
+
+async function handleWishlistAttachment(file) {
+
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    document.getElementById("wishlistAttachStatus").textContent = "Uploading...";
+
+    try {
+
+        const response = await fetch("/api/notes/upload-attachment", {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.attachment) {
+            currentWishlistAttachment = data.attachment;
+            document.getElementById("wishlistAttachStatus").textContent = "✓ " + data.attachment.filename;
+        }
+
+    } catch (error) {
+        document.getElementById("wishlistAttachStatus").textContent = "Upload failed";
+    }
+}
+
+async function submitNewWishlistItem() {
+
+    const title = document.getElementById("wishlistTitleInput").value.trim();
+    const category = document.getElementById("wishlistCategoryInput").value;
+    const description = document.getElementById("wishlistDescriptionInput").value.trim();
+    const link = document.getElementById("wishlistLinkInput").value.trim();
+    const visibility = document.querySelector('input[name="wishlistVisibility"]:checked').value;
+
+    if (!title) {
+        alert("Please enter a title.");
+        return;
+    }
+
+    try {
+
+        const response = await fetch("/api/wishlist", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                title: title,
+                category: category,
+                description: description,
+                link: link,
+                visibility: visibility,
+                attachment: currentWishlistAttachment
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.item) {
+            allWishlistItems.push(data.item);
+            renderWishlistGrid();
+            closeNewWishlistModal();
+        }
+
+    } catch (error) {
+        console.log("Create wishlist item error:", error);
+    }
+}
+
+
+// =========================
+// WISHLIST VIEWER (reuses note viewer modal)
+// =========================
+
+function openWishlistViewer(itemId) {
+
+    const item = allWishlistItems.find(w => w.id === itemId);
+
+    if (!item) return;
+
+    currentViewerWishlistId = itemId;
+    currentViewerNoteId = null;
+    currentViewerJournalId = null;
+    currentViewerLetterId = null;
+    currentViewerDateId = null;
+    currentViewerPlanId = null;
+
+    document.getElementById("viewerPinBtn").style.display = "none";
+    document.getElementById("viewerLockBtn").style.display = "none";
+    document.getElementById("viewerFavBtn").style.display = "inline-flex";
+    document.getElementById("viewerFavBtn").classList.toggle("active", item.favorite);
+    document.getElementById("viewerFavBtn").setAttribute("onclick", "toggleWishlistField('favorite')");
+
+    const attachmentHtml = item.attachment
+        ? (item.attachment.type === "image"
+            ? `<img src="${item.attachment.url}" style="max-width:100%; border-radius:10px; margin-bottom:14px;">`
+            : `<a href="${item.attachment.url}" target="_blank">📄 ${escapeHtml(item.attachment.filename)}</a><br><br>`)
+        : "";
+
+    const linkHtml = item.link
+        ? `<div class="wishlist-link"><a href="${escapeHtml(item.link)}" target="_blank">${escapeHtml(item.link)}</a></div>`
+        : "";
+
+    document.getElementById("noteViewerBody").innerHTML = `
+        <div class="notes-viewer-title">🎁 ${escapeHtml(item.title || "Untitled")}</div>
+        <div class="wishlist-category-tag">${escapeHtml(item.category || "Other")}</div>
+        ${attachmentHtml}
+        <div class="notes-viewer-content">${escapeHtml(item.description || "")}</div>
+        ${linkHtml}
+        <div class="notes-viewer-meta">
+            Added by: ${escapeHtml(item.owner || "")} · ${item.visibility === "shared" ? "Shared" : "Only Me"}
+        </div>
+        <div class="notes-viewer-actions">
+            <button class="notes-modal-cancel" onclick="toggleWishlistField('completed')">
+                ${item.completed ? "Mark as not done" : "Mark as done"}
+            </button>
+            <button class="notes-modal-cancel" onclick="deleteCurrentWishlistItem()">Delete</button>
+        </div>
+    `;
+
+    document.getElementById("noteViewerModal").classList.add("show");
+}
+
+async function toggleWishlistField(field) {
+
+    if (!currentViewerWishlistId) return;
+
+    try {
+
+        const response = await fetch(`/api/wishlist/${currentViewerWishlistId}/toggle`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ field: field })
+        });
+
+        const data = await response.json();
+
+        if (data.item) {
+
+            const idx = allWishlistItems.findIndex(w => w.id === data.item.id);
+            if (idx !== -1) allWishlistItems[idx] = data.item;
+
+            renderWishlistGrid();
+            openWishlistViewer(data.item.id);
+        }
+
+    } catch (error) {
+        console.log("Toggle wishlist item error:", error);
+    }
+}
+
+async function deleteCurrentWishlistItem() {
+
+    if (!currentViewerWishlistId) return;
+
+    const confirmDelete = confirm("Delete this wishlist item? This cannot be undone.");
+
+    if (!confirmDelete) return;
+
+    try {
+
+        await fetch(`/api/wishlist/${currentViewerWishlistId}`, { method: "DELETE" });
+
+        allWishlistItems = allWishlistItems.filter(w => w.id !== currentViewerWishlistId);
+
+        renderWishlistGrid();
+        closeNoteViewer();
+
+        currentViewerWishlistId = null;
+
+        document.getElementById("viewerPinBtn").style.display = "inline-flex";
+        document.getElementById("viewerLockBtn").style.display = "inline-flex";
+        document.getElementById("viewerFavBtn").setAttribute("onclick", "toggleViewerNoteField('favorite')");
+
+    } catch (error) {
+        console.log("Delete wishlist item error:", error);
     }
 }

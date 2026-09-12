@@ -85,6 +85,7 @@ NOTES_ATTACHMENTS_FOLDER = "private-vault-notes"
 LETTERS_PUBLIC_ID = "private-vault-meta/letters"
 DATES_PUBLIC_ID = "private-vault-meta/important_dates"
 PLANS_PUBLIC_ID = "private-vault-meta/plans"
+WISHLIST_PUBLIC_ID = "private-vault-meta/wishlist"
 
 
 JOURNAL_CACHE = None
@@ -508,6 +509,57 @@ def calc_plan_progress(plan):
     done = sum(1 for i in items if i.get("completed"))
 
     return round((done / len(items)) * 100)
+WISHLIST_CACHE = None
+WISHLIST_LOCK = threading.Lock()
+
+
+def load_wishlist():
+
+    global WISHLIST_CACHE
+
+    with WISHLIST_LOCK:
+
+        if WISHLIST_CACHE is None:
+            WISHLIST_CACHE = load_json_store(WISHLIST_PUBLIC_ID)
+
+        return list(WISHLIST_CACHE)
+
+
+def save_wishlist(items):
+
+    global WISHLIST_CACHE
+
+    with WISHLIST_LOCK:
+        WISHLIST_CACHE = list(items)
+
+    threading.Thread(target=save_json_store, args=(WISHLIST_PUBLIC_ID, items)).start()
+
+
+def get_visible_wishlist(identity_name):
+
+    items = load_wishlist()
+
+    return [
+        w for w in items
+        if w.get("visibility") == "shared" or w.get("owner") == identity_name
+    ]
+
+
+def can_modify_wishlist_item(item, identity_name):
+
+    if item.get("visibility") == "shared":
+        return True
+
+    return item.get("owner") == identity_name
+
+
+def find_wishlist_item(items, item_id):
+
+    for w in items:
+        if w.get("id") == item_id:
+            return w
+
+    return None
 @app.route("/api/plans")
 def api_get_plans():
 
@@ -701,6 +753,123 @@ def api_delete_plan(plan_id):
     plans = [p for p in plans if p.get("id") != plan_id]
 
     save_plans(plans)
+
+    return jsonify({"success": True})
+@app.route("/api/wishlist")
+def api_get_wishlist():
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    items = get_visible_wishlist(identity_name)
+
+    return jsonify({"items": items})
+
+
+@app.route("/api/wishlist", methods=["POST"])
+def api_create_wishlist_item():
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    data = request.get_json(silent=True) or {}
+
+    title = (data.get("title") or "").strip()
+    category = data.get("category", "Other")
+    description = (data.get("description") or "").strip()
+    link = (data.get("link") or "").strip() or None
+    attachment = data.get("attachment")
+    visibility = data.get("visibility", "shared")
+
+    if not title:
+        return jsonify({"error": "Title is required"}), 400
+
+    if visibility not in ("shared", "only-me"):
+        visibility = "shared"
+
+    owner = session.get("identity_name", "Someone")
+
+    items = load_wishlist()
+
+    now = datetime.now().strftime("%d %b, %I:%M %p")
+
+    item = {
+        "id": secrets.token_hex(6),
+        "title": title,
+        "category": category,
+        "description": description,
+        "link": link,
+        "attachment": attachment,
+        "visibility": visibility,
+        "owner": owner,
+        "completed": False,
+        "favorite": False,
+        "created_at": now,
+        "updated_at": now
+    }
+
+    items.append(item)
+
+    save_wishlist(items)
+
+    return jsonify({"item": item})
+
+
+@app.route("/api/wishlist/<item_id>/toggle", methods=["POST"])
+def api_toggle_wishlist_item(item_id):
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    data = request.get_json(silent=True) or {}
+
+    field = data.get("field")
+
+    if field not in ("completed", "favorite"):
+        return jsonify({"error": "Invalid field"}), 400
+
+    items = load_wishlist()
+
+    item = find_wishlist_item(items, item_id)
+
+    if not item:
+        return jsonify({"error": "Item not found"}), 404
+
+    if not can_modify_wishlist_item(item, identity_name):
+        return jsonify({"error": "Not allowed"}), 403
+
+    item[field] = not item.get(field, False)
+
+    save_wishlist(items)
+
+    return jsonify({"item": item})
+
+
+@app.route("/api/wishlist/<item_id>", methods=["DELETE"])
+def api_delete_wishlist_item(item_id):
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    items = load_wishlist()
+
+    item = find_wishlist_item(items, item_id)
+
+    if not item:
+        return jsonify({"error": "Item not found"}), 404
+
+    if not can_modify_wishlist_item(item, identity_name):
+        return jsonify({"error": "Not allowed"}), 403
+
+    items = [w for w in items if w.get("id") != item_id]
+
+    save_wishlist(items)
 
     return jsonify({"success": True})
 @app.route("/api/letters", methods=["POST"])

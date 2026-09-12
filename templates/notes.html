@@ -129,11 +129,10 @@
     <span class="notes-category-label">Our Plans</span>
 </div>
 
-            <div class="notes-category-card notes-category-soon">
-                <span class="notes-category-icon">🎁</span>
-                <span class="notes-category-label">Wishlist</span>
-                <span class="notes-soon-tag">Coming soon</span>
-            </div>
+<div class="notes-category-card" data-category="wishlist" onclick="setNotesCategory('wishlist', this)">
+    <span class="notes-category-icon">🎁</span>
+    <span class="notes-category-label">Wishlist</span>
+</div>
 
             <div class="notes-category-card notes-category-soon">
                 <span class="notes-category-icon">🌍</span>
@@ -178,6 +177,7 @@
 <div class="notes-grid" id="lettersGrid" style="display:none;"></div>
 <div class="notes-grid" id="datesGrid" style="display:none;"></div>
 <div class="notes-grid" id="plansGrid" style="display:none;"></div>
+<div class="notes-grid" id="wishlistGrid" style="display:none;"></div>
     </main>
 
 
@@ -389,6 +389,46 @@
         <div class="notes-modal-actions">
             <button type="button" class="notes-modal-cancel" onclick="closeNewPlanModal()">Cancel</button>
             <button type="button" class="notes-modal-save" onclick="submitNewPlan()">Save Plan</button>
+        </div>
+
+    </div>
+
+</div>
+<div class="notes-modal" id="newWishlistModal">
+
+    <div class="notes-modal-inner">
+
+        <div class="notes-modal-title">Add to Wishlist</div>
+
+        <input type="text" id="wishlistTitleInput" class="notes-form-input" placeholder="Item title">
+
+        <select id="wishlistCategoryInput" class="notes-form-input">
+            <option value="Movies">Movies</option>
+            <option value="Food">Food</option>
+            <option value="Places">Places</option>
+            <option value="Things to buy">Things to buy</option>
+            <option value="Things to try">Things to try</option>
+            <option value="Other">Other</option>
+        </select>
+
+        <textarea id="wishlistDescriptionInput" class="notes-form-textarea" placeholder="Description (optional)" rows="3"></textarea>
+
+        <input type="text" id="wishlistLinkInput" class="notes-form-input" placeholder="Link (optional)">
+
+        <div class="notes-visibility-row">
+            <label><input type="radio" name="wishlistVisibility" value="shared" checked> Shared</label>
+            <label><input type="radio" name="wishlistVisibility" value="only-me"> Only Me</label>
+        </div>
+
+        <div class="notes-attachment-row">
+            <button type="button" class="notes-attach-btn" onclick="document.getElementById('wishlistAttachInput').click()">📎 Attach Image</button>
+            <input type="file" id="wishlistAttachInput" style="display:none;" onchange="handleWishlistAttachment(this.files[0])">
+            <span id="wishlistAttachStatus"></span>
+        </div>
+
+        <div class="notes-modal-actions">
+            <button type="button" class="notes-modal-cancel" onclick="closeNewWishlistModal()">Cancel</button>
+            <button type="button" class="notes-modal-save" onclick="submitNewWishlistItem()">Save</button>
         </div>
 
     </div>
