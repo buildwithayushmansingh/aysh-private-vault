@@ -134,17 +134,11 @@
     <span class="notes-category-label">Wishlist</span>
 </div>
 
-            <div class="notes-category-card notes-category-soon">
-                <span class="notes-category-icon">🌍</span>
-                <span class="notes-category-label">Our Places</span>
-                <span class="notes-soon-tag">Coming soon</span>
-            </div>
+            <div class="notes-category-card" data-category="places" onclick="setNotesCategory('places', this)">
+    <span class="notes-category-icon">🌍</span>
+    <span class="notes-category-label">Our Places</span>
+</div>
 
-            <div class="notes-category-card notes-category-soon">
-                <span class="notes-category-icon">✨</span>
-                <span class="notes-category-label">Little Things</span>
-                <span class="notes-soon-tag">Coming soon</span>
-            </div>
 
         </div>
 
@@ -178,6 +172,7 @@
 <div class="notes-grid" id="datesGrid" style="display:none;"></div>
 <div class="notes-grid" id="plansGrid" style="display:none;"></div>
 <div class="notes-grid" id="wishlistGrid" style="display:none;"></div>
+<div class="notes-grid" id="placesGrid" style="display:none;"></div>
     </main>
 
 
@@ -429,6 +424,43 @@
         <div class="notes-modal-actions">
             <button type="button" class="notes-modal-cancel" onclick="closeNewWishlistModal()">Cancel</button>
             <button type="button" class="notes-modal-save" onclick="submitNewWishlistItem()">Save</button>
+        </div>
+
+    </div>
+
+</div>
+<div class="notes-modal" id="newPlaceModal">
+
+    <div class="notes-modal-inner">
+
+        <div class="notes-modal-title">Add a Place</div>
+
+        <input type="text" id="placeNameInput" class="notes-form-input" placeholder="Place name">
+
+        <textarea id="placeNotesInput" class="notes-form-textarea" placeholder="Notes (optional)" rows="3"></textarea>
+
+        <input type="date" id="placeDateInput" class="notes-form-input">
+
+        <input type="text" id="placeMapLinkInput" class="notes-form-input" placeholder="Map link (optional)">
+
+        <label class="notes-repeat-label">
+            <input type="checkbox" id="placeVisitedInput"> Already visited
+        </label>
+
+        <div class="notes-visibility-row">
+            <label><input type="radio" name="placeVisibility" value="shared" checked> Shared</label>
+            <label><input type="radio" name="placeVisibility" value="only-me"> Only Me</label>
+        </div>
+
+        <div class="notes-attachment-row">
+            <button type="button" class="notes-attach-btn" onclick="document.getElementById('placeAttachInput').click()">📎 Attach Photo</button>
+            <input type="file" id="placeAttachInput" style="display:none;" onchange="handlePlaceAttachment(this.files[0])">
+            <span id="placeAttachStatus"></span>
+        </div>
+
+        <div class="notes-modal-actions">
+            <button type="button" class="notes-modal-cancel" onclick="closeNewPlaceModal()">Cancel</button>
+            <button type="button" class="notes-modal-save" onclick="submitNewPlace()">Save Place</button>
         </div>
 
     </div>

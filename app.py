@@ -86,6 +86,7 @@ LETTERS_PUBLIC_ID = "private-vault-meta/letters"
 DATES_PUBLIC_ID = "private-vault-meta/important_dates"
 PLANS_PUBLIC_ID = "private-vault-meta/plans"
 WISHLIST_PUBLIC_ID = "private-vault-meta/wishlist"
+PLACES_PUBLIC_ID = "private-vault-meta/places"
 
 
 JOURNAL_CACHE = None
@@ -560,6 +561,57 @@ def find_wishlist_item(items, item_id):
             return w
 
     return None
+PLACES_CACHE = None
+PLACES_LOCK = threading.Lock()
+
+
+def load_places():
+
+    global PLACES_CACHE
+
+    with PLACES_LOCK:
+
+        if PLACES_CACHE is None:
+            PLACES_CACHE = load_json_store(PLACES_PUBLIC_ID)
+
+        return list(PLACES_CACHE)
+
+
+def save_places(places):
+
+    global PLACES_CACHE
+
+    with PLACES_LOCK:
+        PLACES_CACHE = list(places)
+
+    threading.Thread(target=save_json_store, args=(PLACES_PUBLIC_ID, places)).start()
+
+
+def get_visible_places(identity_name):
+
+    places = load_places()
+
+    return [
+        p for p in places
+        if p.get("visibility") == "shared" or p.get("owner") == identity_name
+    ]
+
+
+def can_modify_place(place, identity_name):
+
+    if place.get("visibility") == "shared":
+        return True
+
+    return place.get("owner") == identity_name
+
+
+def find_place(places, place_id):
+
+    for p in places:
+        if p.get("id") == place_id:
+            return p
+
+    return None
 @app.route("/api/plans")
 def api_get_plans():
 
@@ -870,6 +922,116 @@ def api_delete_wishlist_item(item_id):
     items = [w for w in items if w.get("id") != item_id]
 
     save_wishlist(items)
+
+    return jsonify({"success": True})
+@app.route("/api/places")
+def api_get_places():
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    places = get_visible_places(identity_name)
+
+    return jsonify({"places": places})
+
+
+@app.route("/api/places", methods=["POST"])
+def api_create_place():
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    data = request.get_json(silent=True) or {}
+
+    name = (data.get("name") or "").strip()
+    notes_text = (data.get("notes") or "").strip()
+    visit_date = (data.get("date") or "").strip() or None
+    visited = bool(data.get("visited"))
+    map_link = (data.get("map_link") or "").strip() or None
+    attachment = data.get("attachment")
+    visibility = data.get("visibility", "shared")
+
+    if not name:
+        return jsonify({"error": "Place name is required"}), 400
+
+    if visibility not in ("shared", "only-me"):
+        visibility = "shared"
+
+    owner = session.get("identity_name", "Someone")
+
+    places = load_places()
+
+    now = datetime.now().strftime("%d %b, %I:%M %p")
+
+    place = {
+        "id": secrets.token_hex(6),
+        "name": name,
+        "notes": notes_text,
+        "date": visit_date,
+        "visited": visited,
+        "map_link": map_link,
+        "attachment": attachment,
+        "visibility": visibility,
+        "owner": owner,
+        "created_at": now,
+        "updated_at": now
+    }
+
+    places.append(place)
+
+    save_places(places)
+
+    return jsonify({"place": place})
+
+
+@app.route("/api/places/<place_id>/toggle", methods=["POST"])
+def api_toggle_place(place_id):
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    places = load_places()
+
+    place = find_place(places, place_id)
+
+    if not place:
+        return jsonify({"error": "Place not found"}), 404
+
+    if not can_modify_place(place, identity_name):
+        return jsonify({"error": "Not allowed"}), 403
+
+    place["visited"] = not place.get("visited", False)
+
+    save_places(places)
+
+    return jsonify({"place": place})
+
+
+@app.route("/api/places/<place_id>", methods=["DELETE"])
+def api_delete_place(place_id):
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    places = load_places()
+
+    place = find_place(places, place_id)
+
+    if not place:
+        return jsonify({"error": "Place not found"}), 404
+
+    if not can_modify_place(place, identity_name):
+        return jsonify({"error": "Not allowed"}), 403
+
+    places = [p for p in places if p.get("id") != place_id]
+
+    save_places(places)
 
     return jsonify({"success": True})
 @app.route("/api/letters", methods=["POST"])

@@ -889,6 +889,7 @@ document.addEventListener("keydown", function (event) {
         closeNewDateModal();
         closeNewPlanModal();
         closeNewWishlistModal();
+        closeNewPlaceModal();
     }
 });
 
@@ -901,6 +902,7 @@ document.addEventListener("click", function (event) {
     if (event.target.id === "newDateModal") closeNewDateModal();
     if (event.target.id === "newPlanModal") closeNewPlanModal();
     if (event.target.id === "newWishlistModal") closeNewWishlistModal();
+    if (event.target.id === "newPlaceModal") closeNewPlaceModal();
 });
 // =========================
 // VAULT DOCK — SLIDING PILL INDICATOR
@@ -1139,54 +1141,77 @@ function setNotesCategory(category, cardEl) {
     });
 
     cardEl.classList.add("active");
-
     currentJournalCategory = category;
 
-    const notesGrid = document.getElementById("notesGrid");
-    const journalTimeline = document.getElementById("journalTimeline");
-    const lettersGrid = document.getElementById("lettersGrid");
-    const datesGrid = document.getElementById("datesGrid");
-    const plansGrid = document.getElementById("plansGrid");
-    const wishlistGrid = document.getElementById("wishlistGrid");
+    const grids = [
+        "notesGrid",
+        "journalTimeline",
+        "lettersGrid",
+        "datesGrid",
+        "plansGrid",
+        "wishlistGrid",
+        "placesGrid"
+    ];
+
+    // Sab sections ko pehle hide karo
+    grids.forEach(function (id) {
+        const el = document.getElementById(id);
+        if (el) {
+            el.style.display = "none";
+        }
+    });
+
     const filterRow = document.querySelector(".notes-filter-row");
+    if (filterRow) {
+        filterRow.style.display = "none";
+    }
 
-    notesGrid.style.display = "none";
-    journalTimeline.style.display = "none";
-    lettersGrid.style.display = "none";
-    datesGrid.style.display = "none";
-    plansGrid.style.display = "none";
-    wishlistGrid.style.display = "none";
-    if (filterRow) filterRow.style.display = "none";
-
+    // Sirf selected section show karo
     if (category === "journal") {
 
-        journalTimeline.style.display = "flex";
+        const el = document.getElementById("journalTimeline");
+        if (el) el.style.display = "flex";
         loadJournal();
 
     } else if (category === "letters") {
 
-        lettersGrid.style.display = "grid";
+        const el = document.getElementById("lettersGrid");
+        if (el) el.style.display = "grid";
         loadLetters();
 
     } else if (category === "dates") {
 
-        datesGrid.style.display = "grid";
+        const el = document.getElementById("datesGrid");
+        if (el) el.style.display = "grid";
         loadDates();
 
     } else if (category === "plans") {
 
-        plansGrid.style.display = "grid";
+        const el = document.getElementById("plansGrid");
+        if (el) el.style.display = "grid";
         loadPlans();
 
     } else if (category === "wishlist") {
 
-        wishlistGrid.style.display = "grid";
+        const el = document.getElementById("wishlistGrid");
+        if (el) el.style.display = "grid";
         loadWishlist();
+
+    } else if (category === "places") {
+
+        const el = document.getElementById("placesGrid");
+        if (el) el.style.display = "grid";
+        loadPlaces();
 
     } else {
 
-        notesGrid.style.display = "grid";
-        if (filterRow) filterRow.style.display = "flex";
+        const el = document.getElementById("notesGrid");
+        if (el) el.style.display = "grid";
+
+        if (filterRow) {
+            filterRow.style.display = "flex";
+        }
+
         renderNotes();
     }
 }
@@ -1441,10 +1466,36 @@ function renderNoteViewerContent(note) {
         </div>
     `;
 }
-
 function closeNoteViewer() {
-    document.getElementById("noteViewerModal").classList.remove("show");
+    const modal = document.getElementById("noteViewerModal");
+
+    if (modal) {
+        modal.classList.remove("show");
+    }
+
     currentViewerNoteId = null;
+    currentViewerJournalId = null;
+    currentViewerLetterId = null;
+    currentViewerDateId = null;
+    currentViewerPlanId = null;
+    currentViewerWishlistId = null;
+    currentViewerPlaceId = null;
+
+    // Viewer buttons ko normal state me lao
+    const pinBtn = document.getElementById("viewerPinBtn");
+    const favBtn = document.getElementById("viewerFavBtn");
+    const lockBtn = document.getElementById("viewerLockBtn");
+
+    if (pinBtn) pinBtn.style.display = "inline-flex";
+    if (favBtn) favBtn.style.display = "inline-flex";
+    if (lockBtn) lockBtn.style.display = "inline-flex";
+
+    if (favBtn) {
+        favBtn.setAttribute(
+            "onclick",
+            "toggleViewerNoteField('favorite')"
+        );
+    }
 }
 
 async function toggleViewerNoteField(field) {
@@ -1826,6 +1877,8 @@ function openCorrectNewModal() {
         openNewPlanModal();
     } else if (currentJournalCategory === "wishlist") {
         openNewWishlistModal();
+    } else if (currentJournalCategory === "places") {
+        openNewPlaceModal();
     } else {
         openNewNoteModal();
     }
@@ -2943,5 +2996,264 @@ async function deleteCurrentWishlistItem() {
 
     } catch (error) {
         console.log("Delete wishlist item error:", error);
+    }
+}
+// =========================================================
+// OUR PLACES
+// =========================================================
+
+let allPlaces = [];
+let currentPlaceAttachment = null;
+let currentViewerPlaceId = null;
+
+async function loadPlaces() {
+
+    try {
+
+        const response = await fetch("/api/places");
+        const data = await response.json();
+
+        allPlaces = data.places || [];
+
+        renderPlacesGrid();
+
+    } catch (error) {
+        console.log("Load places error:", error);
+    }
+}
+
+function renderPlacesGrid() {
+
+    const grid = document.getElementById("placesGrid");
+
+    if (!grid) return;
+
+    if (allPlaces.length === 0) {
+
+        grid.innerHTML = `
+            <div class="notes-empty">
+                No places yet.<br><br>
+                <button class="notes-new-btn" onclick="openNewPlaceModal()">+ Add Place</button>
+            </div>
+        `;
+        return;
+    }
+
+    grid.innerHTML = allPlaces.map(function (place) {
+
+        const statusHtml = place.visited
+            ? `<span class="places-status-badge places-status-visited">Visited</span>`
+            : `<span class="places-status-badge places-status-want">Want to Visit</span>`;
+
+        return `
+            <div class="notes-card" onclick="openPlaceViewer('${place.id}')">
+                <div class="notes-card-badges">${statusHtml}</div>
+                <div class="notes-card-title">🌍 ${escapeHtml(place.name || "Untitled")}</div>
+                <div class="notes-card-preview">${escapeHtml((place.notes || "").slice(0, 100))}</div>
+                <div class="notes-card-meta">
+                    <span>${escapeHtml(place.owner || "")}</span>
+                    <span>${escapeHtml(place.date || "")}</span>
+                </div>
+            </div>
+        `;
+
+    }).join("");
+}
+
+
+// =========================
+// NEW PLACE MODAL
+// =========================
+
+function openNewPlaceModal() {
+    document.getElementById("newPlaceModal").classList.add("show");
+}
+
+function closeNewPlaceModal() {
+    document.getElementById("newPlaceModal").classList.remove("show");
+    document.getElementById("placeNameInput").value = "";
+    document.getElementById("placeNotesInput").value = "";
+    document.getElementById("placeDateInput").value = "";
+    document.getElementById("placeMapLinkInput").value = "";
+    document.getElementById("placeVisitedInput").checked = false;
+    document.getElementById("placeAttachStatus").textContent = "";
+    currentPlaceAttachment = null;
+}
+
+async function handlePlaceAttachment(file) {
+
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    document.getElementById("placeAttachStatus").textContent = "Uploading...";
+
+    try {
+
+        const response = await fetch("/api/notes/upload-attachment", {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.attachment) {
+            currentPlaceAttachment = data.attachment;
+            document.getElementById("placeAttachStatus").textContent = "✓ " + data.attachment.filename;
+        }
+
+    } catch (error) {
+        document.getElementById("placeAttachStatus").textContent = "Upload failed";
+    }
+}
+
+async function submitNewPlace() {
+
+    const name = document.getElementById("placeNameInput").value.trim();
+    const notesText = document.getElementById("placeNotesInput").value.trim();
+    const dateValue = document.getElementById("placeDateInput").value;
+    const mapLink = document.getElementById("placeMapLinkInput").value.trim();
+    const visited = document.getElementById("placeVisitedInput").checked;
+    const visibility = document.querySelector('input[name="placeVisibility"]:checked').value;
+
+    if (!name) {
+        alert("Please enter a place name.");
+        return;
+    }
+
+    try {
+
+        const response = await fetch("/api/places", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                name: name,
+                notes: notesText,
+                date: dateValue || null,
+                map_link: mapLink,
+                visited: visited,
+                visibility: visibility,
+                attachment: currentPlaceAttachment
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.place) {
+            allPlaces.push(data.place);
+            renderPlacesGrid();
+            closeNewPlaceModal();
+        }
+
+    } catch (error) {
+        console.log("Create place error:", error);
+    }
+}
+
+
+// =========================
+// PLACE VIEWER (reuses note viewer modal)
+// =========================
+
+function openPlaceViewer(placeId) {
+
+    const place = allPlaces.find(p => p.id === placeId);
+
+    if (!place) return;
+
+    currentViewerPlaceId = placeId;
+    currentViewerNoteId = null;
+    currentViewerJournalId = null;
+    currentViewerLetterId = null;
+    currentViewerDateId = null;
+    currentViewerPlanId = null;
+    currentViewerWishlistId = null;
+
+    document.getElementById("viewerPinBtn").style.display = "none";
+    document.getElementById("viewerFavBtn").style.display = "none";
+    document.getElementById("viewerLockBtn").style.display = "none";
+
+    const attachmentHtml = place.attachment
+        ? (place.attachment.type === "image"
+            ? `<img src="${place.attachment.url}" style="max-width:100%; border-radius:10px; margin-bottom:14px;">`
+            : `<a href="${place.attachment.url}" target="_blank">📄 ${escapeHtml(place.attachment.filename)}</a><br><br>`)
+        : "";
+
+    const mapHtml = place.map_link
+        ? `<div class="wishlist-link"><a href="${escapeHtml(place.map_link)}" target="_blank">📍 View on map</a></div>`
+        : "";
+
+    document.getElementById("noteViewerBody").innerHTML = `
+        <div class="notes-viewer-title">🌍 ${escapeHtml(place.name || "Untitled")}</div>
+        ${attachmentHtml}
+        <div class="notes-viewer-content">${escapeHtml(place.notes || "")}</div>
+        ${mapHtml}
+        <div class="notes-viewer-meta">
+            ${place.date ? escapeHtml(place.date) + " · " : ""}Added by: ${escapeHtml(place.owner || "")} · ${place.visibility === "shared" ? "Shared" : "Only Me"}
+        </div>
+        <div class="notes-viewer-actions">
+            <button class="notes-modal-cancel" onclick="togglePlaceVisited()">
+                ${place.visited ? "Mark as not visited" : "Mark as visited"}
+            </button>
+            <button class="notes-modal-cancel" onclick="deleteCurrentPlace()">Delete</button>
+        </div>
+    `;
+
+    document.getElementById("noteViewerModal").classList.add("show");
+}
+
+async function togglePlaceVisited() {
+
+    if (!currentViewerPlaceId) return;
+
+    try {
+
+        const response = await fetch(`/api/places/${currentViewerPlaceId}/toggle`, {
+            method: "POST"
+        });
+
+        const data = await response.json();
+
+        if (data.place) {
+
+            const idx = allPlaces.findIndex(p => p.id === data.place.id);
+            if (idx !== -1) allPlaces[idx] = data.place;
+
+            renderPlacesGrid();
+            openPlaceViewer(data.place.id);
+        }
+
+    } catch (error) {
+        console.log("Toggle place error:", error);
+    }
+}
+
+async function deleteCurrentPlace() {
+
+    if (!currentViewerPlaceId) return;
+
+    const confirmDelete = confirm("Delete this place? This cannot be undone.");
+
+    if (!confirmDelete) return;
+
+    try {
+
+        await fetch(`/api/places/${currentViewerPlaceId}`, { method: "DELETE" });
+
+        allPlaces = allPlaces.filter(p => p.id !== currentViewerPlaceId);
+
+        renderPlacesGrid();
+        closeNoteViewer();
+
+        currentViewerPlaceId = null;
+
+        document.getElementById("viewerPinBtn").style.display = "inline-flex";
+        document.getElementById("viewerFavBtn").style.display = "inline-flex";
+        document.getElementById("viewerLockBtn").style.display = "inline-flex";
+        document.getElementById("viewerFavBtn").setAttribute("onclick", "toggleViewerNoteField('favorite')");
+
+    } catch (error) {
+        console.log("Delete place error:", error);
     }
 }
