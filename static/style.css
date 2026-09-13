@@ -4007,3 +4007,244 @@ body {
     background: var(--hover-fill);
     color: var(--text-muted);
 }
+
+/* =========================
+   OUR PLAYLIST — VINYL CARDS
+========================= */
+
+.music-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px !important;
+}
+
+.music-vinyl {
+    position: relative;
+    width: 52px;
+    height: 52px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: repeating-radial-gradient(circle at center,
+            #1a1a1a 0px,
+            #1a1a1a 2px,
+            #2b2b2b 3px,
+            #1a1a1a 4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 16px var(--accent-glow);
+    animation: vinylSpin 4s linear infinite;
+    animation-play-state: paused;
+}
+
+.music-card.playing .music-vinyl {
+    animation-play-state: running;
+}
+
+@keyframes vinylSpin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.music-vinyl-center {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent-glow);
+}
+
+.music-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.music-title {
+    font-size: 14px;
+    font-weight: bold;
+    color: var(--text-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.music-artist {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.music-mood {
+    font-size: 18px;
+}
+
+
+/* EQUALIZER BARS (animate while playing) */
+
+.music-equalizer {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 18px;
+}
+
+.music-equalizer span {
+    width: 3px;
+    background: var(--accent);
+    border-radius: 2px;
+    animation: eqBounce 0.8s ease-in-out infinite;
+}
+
+.music-equalizer span:nth-child(1) {
+    height: 40%;
+    animation-delay: 0s;
+}
+
+.music-equalizer span:nth-child(2) {
+    height: 100%;
+    animation-delay: 0.2s;
+}
+
+.music-equalizer span:nth-child(3) {
+    height: 60%;
+    animation-delay: 0.4s;
+}
+
+.music-equalizer span:nth-child(4) {
+    height: 80%;
+    animation-delay: 0.1s;
+}
+
+@keyframes eqBounce {
+
+    0%,
+    100% {
+        transform: scaleY(0.4);
+    }
+
+    50% {
+        transform: scaleY(1);
+    }
+}
+
+.music-player-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    border-radius: 14px;
+    background: var(--hover-fill);
+    margin: 14px 0;
+}
+
+.music-play-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: var(--accent-btn);
+    color: var(--text-color);
+    font-size: 16px;
+    cursor: pointer;
+    box-shadow: 0 0 14px var(--accent-glow);
+}
+
+.music-link {
+    display: inline-block;
+    margin-top: 10px;
+    color: var(--accent);
+    font-size: 13px;
+}
+
+/* =========================
+   PHOTO IDEAS
+========================= */
+
+.idea-status-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 10px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.idea-status-idea {
+    background: var(--hover-fill);
+    color: var(--text-muted);
+}
+
+.idea-status-planned {
+    background: rgba(255, 200, 80, 0.12);
+    color: #ffd76d;
+}
+
+.idea-status-captured {
+    background: rgba(109, 255, 158, 0.12);
+    color: var(--success-color, #6dff9e);
+}
+
+.idea-priority-High {
+    color: #ff9b9b;
+}
+
+.idea-tags-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 8px 0;
+}
+
+.idea-tag {
+    padding: 2px 8px;
+    border-radius: 8px;
+    background: var(--hover-fill);
+    color: var(--accent);
+    font-size: 10px;
+}
+
+.idea-ref-thumb {
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 10px;
+    margin-bottom: 10px;
+}
+
+.idea-status-controls {
+    display: flex;
+    gap: 8px;
+    margin: 14px 0;
+}
+
+.idea-status-btn {
+    flex: 1;
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color-strong);
+    background: var(--hover-fill);
+    color: var(--text-muted);
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.idea-status-btn.active {
+    color: var(--text-color);
+    border-color: var(--accent);
+    box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.idea-memories-prompt {
+    padding: 14px;
+    border-radius: 10px;
+    background: rgba(109, 255, 158, 0.08);
+    border: 1px solid rgba(109, 255, 158, 0.3);
+    margin: 14px 0;
+    text-align: center;
+    font-size: 13px;
+}

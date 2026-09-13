@@ -75,6 +75,7 @@ FAVORITES_PUBLIC_ID = "private-vault-meta/favorites"
 
 AVATARS_PUBLIC_ID = "private-vault-meta/avatars"
 
+
 # =========================================================
 # NOTES CONSTANTS (add near your other Cloudinary constants)
 # =========================================================
@@ -87,6 +88,8 @@ DATES_PUBLIC_ID = "private-vault-meta/important_dates"
 PLANS_PUBLIC_ID = "private-vault-meta/plans"
 WISHLIST_PUBLIC_ID = "private-vault-meta/wishlist"
 PLACES_PUBLIC_ID = "private-vault-meta/places"
+MUSIC_PUBLIC_ID = "private-vault-meta/music"
+PHOTO_IDEAS_PUBLIC_ID = "private-vault-meta/photo_ideas"
 
 
 JOURNAL_CACHE = None
@@ -612,6 +615,108 @@ def find_place(places, place_id):
             return p
 
     return None
+MUSIC_CACHE = None
+MUSIC_LOCK = threading.Lock()
+
+
+def load_music():
+
+    global MUSIC_CACHE
+
+    with MUSIC_LOCK:
+
+        if MUSIC_CACHE is None:
+            MUSIC_CACHE = load_json_store(MUSIC_PUBLIC_ID)
+
+        return list(MUSIC_CACHE)
+
+
+def save_music(songs):
+
+    global MUSIC_CACHE
+
+    with MUSIC_LOCK:
+        MUSIC_CACHE = list(songs)
+
+    threading.Thread(target=save_json_store, args=(MUSIC_PUBLIC_ID, songs)).start()
+
+
+def get_visible_music(identity_name):
+
+    songs = load_music()
+
+    return [
+        s for s in songs
+        if s.get("visibility") == "shared" or s.get("owner") == identity_name
+    ]
+
+
+def can_modify_song(song, identity_name):
+
+    if song.get("visibility") == "shared":
+        return True
+
+    return song.get("owner") == identity_name
+
+
+def find_song(songs, song_id):
+
+    for s in songs:
+        if s.get("id") == song_id:
+            return s
+
+    return None
+PHOTO_IDEAS_CACHE = None
+PHOTO_IDEAS_LOCK = threading.Lock()
+
+
+def load_photo_ideas():
+
+    global PHOTO_IDEAS_CACHE
+
+    with PHOTO_IDEAS_LOCK:
+
+        if PHOTO_IDEAS_CACHE is None:
+            PHOTO_IDEAS_CACHE = load_json_store(PHOTO_IDEAS_PUBLIC_ID)
+
+        return list(PHOTO_IDEAS_CACHE)
+
+
+def save_photo_ideas(ideas):
+
+    global PHOTO_IDEAS_CACHE
+
+    with PHOTO_IDEAS_LOCK:
+        PHOTO_IDEAS_CACHE = list(ideas)
+
+    threading.Thread(target=save_json_store, args=(PHOTO_IDEAS_PUBLIC_ID, ideas)).start()
+
+
+def get_visible_photo_ideas(identity_name):
+
+    ideas = load_photo_ideas()
+
+    return [
+        i for i in ideas
+        if i.get("visibility") == "shared" or i.get("owner") == identity_name
+    ]
+
+
+def can_modify_photo_idea(idea, identity_name):
+
+    if idea.get("visibility") == "shared":
+        return True
+
+    return idea.get("owner") == identity_name
+
+
+def find_photo_idea(ideas, idea_id):
+
+    for i in ideas:
+        if i.get("id") == idea_id:
+            return i
+
+    return None
 @app.route("/api/plans")
 def api_get_plans():
 
@@ -1032,6 +1137,404 @@ def api_delete_place(place_id):
     places = [p for p in places if p.get("id") != place_id]
 
     save_places(places)
+
+    return jsonify({"success": True})
+@app.route("/api/music")
+def api_get_music():
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    songs = get_visible_music(identity_name)
+
+    return jsonify({"songs": songs})
+
+
+@app.route("/api/music", methods=["POST"])
+def api_create_song():
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    data = request.get_json(silent=True) or {}
+
+    title = (data.get("title") or "").strip()
+    artist = (data.get("artist") or "").strip()
+    link = (data.get("link") or "").strip() or None
+    mood = data.get("mood", "🎵")
+    audio = data.get("audio")
+    visibility = data.get("visibility", "shared")
+
+    if not title:
+        return jsonify({"error": "Song title is required"}), 400
+
+    if visibility not in ("shared", "only-me"):
+        visibility = "shared"
+
+    owner = session.get("identity_name", "Someone")
+
+    songs = load_music()
+
+    now = datetime.now().strftime("%d %b, %I:%M %p")
+
+    song = {
+        "id": secrets.token_hex(6),
+        "title": title,
+        "artist": artist,
+        "link": link,
+        "mood": mood,
+        "audio": audio,
+        "visibility": visibility,
+        "owner": owner,
+        "favorite": False,
+        "created_at": now
+    }
+
+    songs.append(song)
+
+    save_music(songs)
+
+    return jsonify({"song": song})
+
+
+@app.route("/api/music/<song_id>/toggle", methods=["POST"])
+def api_toggle_song(song_id):
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    songs = load_music()
+
+    song = find_song(songs, song_id)
+
+    if not song:
+        return jsonify({"error": "Song not found"}), 404
+
+    if not can_modify_song(song, identity_name):
+        return jsonify({"error": "Not allowed"}), 403
+
+    song["favorite"] = not song.get("favorite", False)
+
+    save_music(songs)
+
+    return jsonify({"song": song})
+
+
+@app.route("/api/music/<song_id>", methods=["DELETE"])
+def api_delete_song(song_id):
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    songs = load_music()
+
+    song = find_song(songs, song_id)
+
+    if not song:
+        return jsonify({"error": "Song not found"}), 404
+
+    if not can_modify_song(song, identity_name):
+        return jsonify({"error": "Not allowed"}), 403
+
+    songs = [s for s in songs if s.get("id") != song_id]
+
+    save_music(songs)
+
+    return jsonify({"success": True})
+@app.route("/api/photo-ideas")
+def api_get_photo_ideas():
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    ideas = get_visible_photo_ideas(identity_name)
+
+    return jsonify({"ideas": ideas})
+
+
+@app.route("/api/photo-ideas", methods=["POST"])
+def api_create_photo_idea():
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    data = request.get_json(silent=True) or {}
+
+    title = (data.get("title") or "").strip()
+    description = (data.get("description") or "").strip()
+    location = (data.get("location") or "").strip()
+    best_time = data.get("best_time", "Anytime")
+    style = data.get("style", "Candid")
+    tags = data.get("tags", [])
+    priority = data.get("priority", "Medium")
+    visibility = data.get("visibility", "shared")
+    pinned = bool(data.get("pinned"))
+    favorite = bool(data.get("favorite"))
+    reference_image = data.get("reference_image")
+
+    if not title:
+        return jsonify({"error": "Title is required"}), 400
+
+    if visibility not in ("shared", "only-me"):
+        visibility = "shared"
+
+    if priority not in ("Low", "Medium", "High"):
+        priority = "Medium"
+
+    owner = session.get("identity_name", "Someone")
+
+    ideas = load_photo_ideas()
+
+    now = datetime.now().strftime("%d %b, %I:%M %p")
+
+    idea = {
+        "id": secrets.token_hex(6),
+        "title": title,
+        "description": description,
+        "location": location,
+        "best_time": best_time,
+        "style": style,
+        "tags": tags,
+        "priority": priority,
+        "status": "idea",
+        "visibility": visibility,
+        "owner": owner,
+        "pinned": pinned,
+        "favorite": favorite,
+        "locked": False,
+        "reference_image": reference_image,
+        "captured_image": None,
+        "added_to_memories": False,
+        "recreate_note": None,
+        "created_at": now,
+        "updated_at": now
+    }
+
+    ideas.append(idea)
+
+    save_photo_ideas(ideas)
+
+    return jsonify({"idea": idea})
+
+
+@app.route("/api/photo-ideas/<idea_id>", methods=["PUT"])
+def api_update_photo_idea(idea_id):
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    ideas = load_photo_ideas()
+
+    idea = find_photo_idea(ideas, idea_id)
+
+    if not idea:
+        return jsonify({"error": "Idea not found"}), 404
+
+    if not can_modify_photo_idea(idea, identity_name):
+        return jsonify({"error": "Not allowed"}), 403
+
+    data = request.get_json(silent=True) or {}
+
+    editable_fields = [
+        "title", "description", "location", "best_time",
+        "style", "tags", "priority", "visibility", "recreate_note"
+    ]
+
+    for field in editable_fields:
+        if field in data:
+            idea[field] = data[field]
+
+    idea["updated_at"] = datetime.now().strftime("%d %b, %I:%M %p")
+
+    save_photo_ideas(ideas)
+
+    return jsonify({"idea": idea})
+
+
+@app.route("/api/photo-ideas/<idea_id>/status", methods=["POST"])
+def api_set_photo_idea_status(idea_id):
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    data = request.get_json(silent=True) or {}
+
+    new_status = data.get("status")
+
+    if new_status not in ("idea", "planned", "captured"):
+        return jsonify({"error": "Invalid status"}), 400
+
+    ideas = load_photo_ideas()
+
+    idea = find_photo_idea(ideas, idea_id)
+
+    if not idea:
+        return jsonify({"error": "Idea not found"}), 404
+
+    if not can_modify_photo_idea(idea, identity_name):
+        return jsonify({"error": "Not allowed"}), 403
+
+    idea["status"] = new_status
+    idea["updated_at"] = datetime.now().strftime("%d %b, %I:%M %p")
+
+    save_photo_ideas(ideas)
+
+    return jsonify({"idea": idea})
+
+
+@app.route("/api/photo-ideas/<idea_id>/toggle", methods=["POST"])
+def api_toggle_photo_idea(idea_id):
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    data = request.get_json(silent=True) or {}
+
+    field = data.get("field")
+
+    if field not in ("pinned", "favorite", "locked"):
+        return jsonify({"error": "Invalid field"}), 400
+
+    ideas = load_photo_ideas()
+
+    idea = find_photo_idea(ideas, idea_id)
+
+    if not idea:
+        return jsonify({"error": "Idea not found"}), 404
+
+    if not can_modify_photo_idea(idea, identity_name):
+        return jsonify({"error": "Not allowed"}), 403
+
+    idea[field] = not idea.get(field, False)
+
+    save_photo_ideas(ideas)
+
+    return jsonify({"idea": idea})
+
+
+@app.route("/api/photo-ideas/<idea_id>/captured-image", methods=["POST"])
+def api_set_captured_image(idea_id):
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    ideas = load_photo_ideas()
+
+    idea = find_photo_idea(ideas, idea_id)
+
+    if not idea:
+        return jsonify({"error": "Idea not found"}), 404
+
+    if not can_modify_photo_idea(idea, identity_name):
+        return jsonify({"error": "Not allowed"}), 403
+
+    data = request.get_json(silent=True) or {}
+
+    idea["captured_image"] = data.get("captured_image")
+    idea["updated_at"] = datetime.now().strftime("%d %b, %I:%M %p")
+
+    save_photo_ideas(ideas)
+
+    return jsonify({"idea": idea})
+
+
+@app.route("/api/photo-ideas/<idea_id>/add-to-memories", methods=["POST"])
+def api_add_to_memories(idea_id):
+    # Moves the already-uploaded captured image into the main
+    # gallery folder using Cloudinary's rename - this relocates
+    # the existing file rather than uploading a second copy.
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    ideas = load_photo_ideas()
+
+    idea = find_photo_idea(ideas, idea_id)
+
+    if not idea:
+        return jsonify({"error": "Idea not found"}), 404
+
+    if not can_modify_photo_idea(idea, identity_name):
+        return jsonify({"error": "Not allowed"}), 403
+
+    captured = idea.get("captured_image")
+
+    if not captured or not captured.get("public_id"):
+        return jsonify({"error": "No captured photo to add"}), 400
+
+    if idea.get("added_to_memories"):
+        return jsonify({"error": "Already added to memories"}), 400
+
+    old_public_id = captured["public_id"]
+
+    filename = old_public_id.split("/")[-1]
+
+    new_public_id = f"{CLOUDINARY_FOLDER}/{filename}"
+
+    try:
+
+        result = cloudinary.uploader.rename(
+            old_public_id,
+            new_public_id,
+            resource_type="image",
+            invalidate=True
+        )
+
+        idea["added_to_memories"] = True
+        idea["captured_image"]["public_id"] = new_public_id
+        idea["captured_image"]["url"] = result.get("secure_url")
+        idea["updated_at"] = datetime.now().strftime("%d %b, %I:%M %p")
+
+        save_photo_ideas(ideas)
+
+        add_activity("added to memories", filename, session.get("display_name", "Someone"), "upload")
+
+        return jsonify({"idea": idea})
+
+    except Exception as e:
+
+        return jsonify({"error": f"Failed to move image: {e}"}), 500
+
+
+@app.route("/api/photo-ideas/<idea_id>", methods=["DELETE"])
+def api_delete_photo_idea(idea_id):
+
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    identity_name = session.get("identity_name", "")
+
+    ideas = load_photo_ideas()
+
+    idea = find_photo_idea(ideas, idea_id)
+
+    if not idea:
+        return jsonify({"error": "Idea not found"}), 404
+
+    if not can_modify_photo_idea(idea, identity_name):
+        return jsonify({"error": "Not allowed"}), 403
+
+    ideas = [i for i in ideas if i.get("id") != idea_id]
+
+    save_photo_ideas(ideas)
 
     return jsonify({"success": True})
 @app.route("/api/letters", methods=["POST"])
@@ -1457,7 +1960,33 @@ def api_create_note():
 
     return jsonify({"note": note})
 
+@app.route("/api/music/upload-audio", methods=["POST"])
+def api_upload_audio():
 
+    if not session.get("logged_in"):
+        return jsonify({"error": "Not logged in"}), 401
+
+    uploaded_file = request.files.get("file")
+
+    if not uploaded_file or not uploaded_file.filename:
+        return jsonify({"error": "No file provided"}), 400
+
+    try:
+
+        result = cloudinary.uploader.upload(
+            uploaded_file,
+            folder="private-vault-music",
+            resource_type="video"
+        )
+
+        return jsonify({
+            "url": result.get("secure_url"),
+            "filename": uploaded_file.filename
+        })
+
+    except Exception as e:
+
+        return jsonify({"error": f"Upload failed: {e}"}), 500
 # =========================================================
 # NOTES API - UPDATE
 # =========================================================
@@ -1594,10 +2123,12 @@ def api_notes_upload_attachment():
         attachment = {
             "url": result.get("secure_url"),
             "type": "image" if is_image else "file",
-            "filename": uploaded_file.filename
+            "filename": uploaded_file.filename,
+            "public_id": result.get("public_id")
         }
 
         return jsonify({"attachment": attachment})
+
 
     except Exception as e:
 

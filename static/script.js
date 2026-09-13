@@ -890,6 +890,9 @@ document.addEventListener("keydown", function (event) {
         closeNewPlanModal();
         closeNewWishlistModal();
         closeNewPlaceModal();
+        closeNewSongModal();
+        closeNewPhotoIdeaModal();
+        closeCapturedPhotoModal();
     }
 });
 
@@ -903,6 +906,9 @@ document.addEventListener("click", function (event) {
     if (event.target.id === "newPlanModal") closeNewPlanModal();
     if (event.target.id === "newWishlistModal") closeNewWishlistModal();
     if (event.target.id === "newPlaceModal") closeNewPlaceModal();
+    if (event.target.id === "newSongModal") closeNewSongModal();
+    if (event.target.id === "newPhotoIdeaModal") closeNewPhotoIdeaModal();
+    if (event.target.id === "capturedPhotoModal") closeCapturedPhotoModal();
 });
 // =========================
 // VAULT DOCK — SLIDING PILL INDICATOR
@@ -1141,77 +1147,75 @@ function setNotesCategory(category, cardEl) {
     });
 
     cardEl.classList.add("active");
+
     currentJournalCategory = category;
 
-    const grids = [
-        "notesGrid",
-        "journalTimeline",
-        "lettersGrid",
-        "datesGrid",
-        "plansGrid",
-        "wishlistGrid",
-        "placesGrid"
-    ];
-
-    // Sab sections ko pehle hide karo
-    grids.forEach(function (id) {
-        const el = document.getElementById(id);
-        if (el) {
-            el.style.display = "none";
-        }
-    });
-
+    const notesGrid = document.getElementById("notesGrid");
+    const journalTimeline = document.getElementById("journalTimeline");
+    const lettersGrid = document.getElementById("lettersGrid");
+    const datesGrid = document.getElementById("datesGrid");
+    const plansGrid = document.getElementById("plansGrid");
+    const wishlistGrid = document.getElementById("wishlistGrid");
+    const placesGrid = document.getElementById("placesGrid");
+    const musicGrid = document.getElementById("musicGrid");
+    const photoIdeasGrid = document.getElementById("photoIdeasGrid");
     const filterRow = document.querySelector(".notes-filter-row");
-    if (filterRow) {
-        filterRow.style.display = "none";
-    }
 
-    // Sirf selected section show karo
+    notesGrid.style.display = "none";
+    journalTimeline.style.display = "none";
+    lettersGrid.style.display = "none";
+    datesGrid.style.display = "none";
+    plansGrid.style.display = "none";
+    wishlistGrid.style.display = "none";
+    placesGrid.style.display = "none";
+    musicGrid.style.display = "none";
+    photoIdeasGrid.style.display = "none";
+    if (filterRow) filterRow.style.display = "none";
+
     if (category === "journal") {
 
-        const el = document.getElementById("journalTimeline");
-        if (el) el.style.display = "flex";
+        journalTimeline.style.display = "flex";
         loadJournal();
 
     } else if (category === "letters") {
 
-        const el = document.getElementById("lettersGrid");
-        if (el) el.style.display = "grid";
+        lettersGrid.style.display = "grid";
         loadLetters();
 
     } else if (category === "dates") {
 
-        const el = document.getElementById("datesGrid");
-        if (el) el.style.display = "grid";
+        datesGrid.style.display = "grid";
         loadDates();
 
     } else if (category === "plans") {
 
-        const el = document.getElementById("plansGrid");
-        if (el) el.style.display = "grid";
+        plansGrid.style.display = "grid";
         loadPlans();
 
     } else if (category === "wishlist") {
 
-        const el = document.getElementById("wishlistGrid");
-        if (el) el.style.display = "grid";
+        wishlistGrid.style.display = "grid";
         loadWishlist();
 
     } else if (category === "places") {
 
-        const el = document.getElementById("placesGrid");
-        if (el) el.style.display = "grid";
+        placesGrid.style.display = "grid";
         loadPlaces();
+
+    } else if (category === "music") {
+
+        musicGrid.style.display = "grid";
+        loadMusic();
+
+    } else if (category === "photo-ideas") {
+
+        photoIdeasGrid.style.display = "grid";
+        loadPhotoIdeas();
 
     } else {
 
-        const el = document.getElementById("notesGrid");
-        if (el) el.style.display = "grid";
-
-        if (filterRow) {
-            filterRow.style.display = "flex";
-        }
-
+        notesGrid.style.display = "grid";
+        if (filterRow) filterRow.style.display = "flex";
         renderNotes();
     }
 }
@@ -1879,6 +1883,10 @@ function openCorrectNewModal() {
         openNewWishlistModal();
     } else if (currentJournalCategory === "places") {
         openNewPlaceModal();
+    } else if (currentJournalCategory === "music") {
+        openNewSongModal();
+    } else if (currentJournalCategory === "photo-ideas") {
+        openNewPhotoIdeaModal();
     } else {
         openNewNoteModal();
     }
@@ -3255,5 +3263,814 @@ async function deleteCurrentPlace() {
 
     } catch (error) {
         console.log("Delete place error:", error);
+    }
+}
+// =========================================================
+// OUR PLAYLIST
+// =========================================================
+
+let allSongs = [];
+let selectedSongMood = "🎵";
+let currentSongAudio = null;
+let currentViewerSongId = null;
+let activeAudioEl = null;
+let activePlayingCardId = null;
+
+async function loadMusic() {
+
+    try {
+
+        const response = await fetch("/api/music");
+        const data = await response.json();
+
+        allSongs = data.songs || [];
+
+        renderMusicGrid();
+
+    } catch (error) {
+        console.log("Load music error:", error);
+    }
+}
+
+function renderMusicGrid() {
+
+    const grid = document.getElementById("musicGrid");
+
+    if (!grid) return;
+
+    if (allSongs.length === 0) {
+
+        grid.innerHTML = `
+            <div class="notes-empty">
+                No songs yet.<br><br>
+                <button class="notes-new-btn" onclick="openNewSongModal()">+ Add a Song</button>
+            </div>
+        `;
+        return;
+    }
+
+    grid.innerHTML = allSongs.map(function (song) {
+
+        const isPlaying = activePlayingCardId === song.id;
+
+        const rightContent = isPlaying
+            ? `<div class="music-equalizer"><span></span><span></span><span></span><span></span></div>`
+            : `<span class="music-mood">${song.favorite ? "❤️" : (song.mood || "🎵")}</span>`;
+
+        return `
+            <div class="notes-card music-card ${isPlaying ? "playing" : ""}" onclick="openSongViewer('${song.id}')">
+                <div class="music-vinyl"><div class="music-vinyl-center"></div></div>
+                <div class="music-info">
+                    <div class="music-title">${escapeHtml(song.title || "Untitled")}</div>
+                    <div class="music-artist">${escapeHtml(song.artist || "Unknown artist")}</div>
+                </div>
+                ${rightContent}
+            </div>
+        `;
+
+    }).join("");
+}
+
+
+// =========================
+// NEW SONG MODAL
+// =========================
+
+function openNewSongModal() {
+    document.getElementById("newSongModal").classList.add("show");
+}
+
+function closeNewSongModal() {
+    document.getElementById("newSongModal").classList.remove("show");
+    document.getElementById("songTitleInput").value = "";
+    document.getElementById("songArtistInput").value = "";
+    document.getElementById("songLinkInput").value = "";
+    document.getElementById("songAudioStatus").textContent = "";
+    currentSongAudio = null;
+    selectedSongMood = "🎵";
+
+    document.querySelectorAll("#newSongModal .journal-mood-option").forEach(function (el) {
+        el.classList.remove("selected");
+    });
+}
+
+function selectSongMood(mood, el) {
+
+    selectedSongMood = mood;
+
+    document.querySelectorAll("#newSongModal .journal-mood-option").forEach(function (o) {
+        o.classList.remove("selected");
+    });
+
+    el.classList.add("selected");
+}
+
+async function handleSongAudio(file) {
+
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    document.getElementById("songAudioStatus").textContent = "Uploading...";
+
+    try {
+
+        const response = await fetch("/api/music/upload-audio", {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.url) {
+            currentSongAudio = { url: data.url, filename: data.filename };
+            document.getElementById("songAudioStatus").textContent = "✓ " + data.filename;
+        }
+
+    } catch (error) {
+        document.getElementById("songAudioStatus").textContent = "Upload failed";
+    }
+}
+
+async function submitNewSong() {
+
+    const title = document.getElementById("songTitleInput").value.trim();
+    const artist = document.getElementById("songArtistInput").value.trim();
+    const link = document.getElementById("songLinkInput").value.trim();
+    const visibility = document.querySelector('input[name="songVisibility"]:checked').value;
+
+    if (!title) {
+        alert("Please enter a song title.");
+        return;
+    }
+
+    try {
+
+        const response = await fetch("/api/music", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                title: title,
+                artist: artist,
+                link: link,
+                mood: selectedSongMood,
+                audio: currentSongAudio,
+                visibility: visibility
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.song) {
+            allSongs.push(data.song);
+            renderMusicGrid();
+            closeNewSongModal();
+        }
+
+    } catch (error) {
+        console.log("Create song error:", error);
+    }
+}
+
+
+// =========================
+// SONG VIEWER (reuses note viewer modal)
+// =========================
+
+function openSongViewer(songId) {
+
+    const song = allSongs.find(s => s.id === songId);
+
+    if (!song) return;
+
+    currentViewerSongId = songId;
+    currentViewerNoteId = null;
+    currentViewerJournalId = null;
+    currentViewerLetterId = null;
+    currentViewerDateId = null;
+    currentViewerPlanId = null;
+    currentViewerWishlistId = null;
+    currentViewerPlaceId = null;
+
+    document.getElementById("viewerPinBtn").style.display = "none";
+    document.getElementById("viewerLockBtn").style.display = "none";
+    document.getElementById("viewerFavBtn").style.display = "inline-flex";
+    document.getElementById("viewerFavBtn").classList.toggle("active", song.favorite);
+    document.getElementById("viewerFavBtn").setAttribute("onclick", "toggleSongFavorite()");
+
+    const playerHtml = song.audio
+        ? `
+            <div class="music-player-bar">
+                <button class="music-play-btn" id="songPlayBtn" onclick="toggleSongPlayback('${song.id}')">▶</button>
+                <span>${escapeHtml(song.audio.filename || "Audio")}</span>
+            </div>
+            <audio id="songAudioEl" src="${song.audio.url}" onended="onSongEnded('${song.id}')"></audio>
+        `
+        : "";
+
+    const linkHtml = song.link
+        ? `<a href="${escapeHtml(song.link)}" target="_blank" class="music-link">🔗 Listen on Spotify/YouTube</a>`
+        : "";
+
+    document.getElementById("noteViewerBody").innerHTML = `
+        <div class="notes-viewer-title">${song.mood || "🎵"} ${escapeHtml(song.title || "Untitled")}</div>
+        <div class="notes-viewer-content">${escapeHtml(song.artist || "Unknown artist")}</div>
+        ${playerHtml}
+        ${linkHtml}
+        <div class="notes-viewer-meta" style="margin-top:16px;">
+            Added by: ${escapeHtml(song.owner || "")} · ${song.visibility === "shared" ? "Shared" : "Only Me"}
+        </div>
+        <div class="notes-viewer-actions">
+            <button class="notes-modal-cancel" onclick="deleteCurrentSong()">Delete</button>
+        </div>
+    `;
+
+    document.getElementById("noteViewerModal").classList.add("show");
+}
+
+function toggleSongPlayback(songId) {
+
+    const audioEl = document.getElementById("songAudioEl");
+    const btn = document.getElementById("songPlayBtn");
+
+    if (!audioEl) return;
+
+    if (activeAudioEl && activeAudioEl !== audioEl) {
+        activeAudioEl.pause();
+    }
+
+    if (audioEl.paused) {
+        audioEl.play();
+        btn.textContent = "⏸";
+        activeAudioEl = audioEl;
+        activePlayingCardId = songId;
+    } else {
+        audioEl.pause();
+        btn.textContent = "▶";
+        activePlayingCardId = null;
+    }
+
+    renderMusicGrid();
+}
+
+function onSongEnded(songId) {
+
+    activePlayingCardId = null;
+
+    const btn = document.getElementById("songPlayBtn");
+    if (btn) btn.textContent = "▶";
+
+    renderMusicGrid();
+}
+
+async function toggleSongFavorite() {
+
+    if (!currentViewerSongId) return;
+
+    try {
+
+        const response = await fetch(`/api/music/${currentViewerSongId}/toggle`, {
+            method: "POST"
+        });
+
+        const data = await response.json();
+
+        if (data.song) {
+
+            const idx = allSongs.findIndex(s => s.id === data.song.id);
+            if (idx !== -1) allSongs[idx] = data.song;
+
+            renderMusicGrid();
+            openSongViewer(data.song.id);
+        }
+
+    } catch (error) {
+        console.log("Toggle song favorite error:", error);
+    }
+}
+
+async function deleteCurrentSong() {
+
+    if (!currentViewerSongId) return;
+
+    const confirmDelete = confirm("Delete this song? This cannot be undone.");
+
+    if (!confirmDelete) return;
+
+    try {
+
+        await fetch(`/api/music/${currentViewerSongId}`, { method: "DELETE" });
+
+        allSongs = allSongs.filter(s => s.id !== currentViewerSongId);
+
+        activePlayingCardId = null;
+
+        renderMusicGrid();
+        closeNoteViewer();
+
+        currentViewerSongId = null;
+
+        document.getElementById("viewerPinBtn").style.display = "inline-flex";
+        document.getElementById("viewerLockBtn").style.display = "inline-flex";
+        document.getElementById("viewerFavBtn").setAttribute("onclick", "toggleViewerNoteField('favorite')");
+
+    } catch (error) {
+        console.log("Delete song error:", error);
+    }
+}
+// =========================================================
+// PHOTO IDEAS
+// =========================================================
+
+let allPhotoIdeas = [];
+let currentIdeaRefImage = null;
+let currentCapturedImage = null;
+let currentViewerIdeaId = null;
+let pendingStatusIdeaId = null;
+
+async function loadPhotoIdeas() {
+
+    try {
+
+        const response = await fetch("/api/photo-ideas");
+        const data = await response.json();
+
+        allPhotoIdeas = data.ideas || [];
+
+        renderPhotoIdeasGrid();
+
+    } catch (error) {
+        console.log("Load photo ideas error:", error);
+    }
+}
+
+function renderPhotoIdeasGrid() {
+
+    const grid = document.getElementById("photoIdeasGrid");
+
+    if (!grid) return;
+
+    if (allPhotoIdeas.length === 0) {
+
+        grid.innerHTML = `
+            <div class="notes-empty">
+                📸<br>No photo ideas yet.<br>Save the moments you want to capture someday.<br><br>
+                <button class="notes-new-btn" onclick="openNewPhotoIdeaModal()">+ Create Your First Idea</button>
+            </div>
+        `;
+        return;
+    }
+
+    grid.innerHTML = allPhotoIdeas.map(function (idea) {
+
+        const badges = [
+            idea.favorite ? "❤️" : "",
+            idea.pinned ? "📌" : "",
+            idea.locked ? "🔒" : ""
+        ].filter(Boolean).join(" ");
+
+        const statusLabel = idea.status === "idea" ? "💡 IDEA" : idea.status === "planned" ? "📅 PLANNED" : "📸 CAPTURED";
+
+        const thumbHtml = idea.reference_image
+            ? `<img src="${idea.reference_image.url}" class="idea-ref-thumb">`
+            : "";
+
+        const tagsHtml = (idea.tags || []).map(t => `<span class="idea-tag">#${escapeHtml(t)}</span>`).join("");
+
+        return `
+            <div class="notes-card" onclick="openPhotoIdeaViewer('${idea.id}')">
+                <div class="notes-card-badges">${badges}</div>
+                ${thumbHtml}
+                <div class="notes-card-title">${escapeHtml(idea.title || "Untitled")}</div>
+                <div class="notes-card-preview">${escapeHtml(idea.best_time || "")} • ${escapeHtml(idea.style || "")}<br>${escapeHtml((idea.description || "").slice(0, 80))}</div>
+                ${idea.location ? `<div class="notes-card-preview">📍 ${escapeHtml(idea.location)}</div>` : ""}
+                <div class="idea-tags-row">${tagsHtml}</div>
+                <div class="notes-card-meta">
+                    <span class="idea-status-badge idea-status-${idea.status}">${statusLabel}</span>
+                    <span class="idea-priority-${idea.priority}">${escapeHtml(idea.priority || "")}</span>
+                </div>
+            </div>
+        `;
+
+    }).join("");
+}
+
+
+// =========================
+// NEW PHOTO IDEA MODAL
+// =========================
+
+function openNewPhotoIdeaModal() {
+    document.getElementById("newPhotoIdeaModal").classList.add("show");
+}
+
+function closeNewPhotoIdeaModal() {
+    document.getElementById("newPhotoIdeaModal").classList.remove("show");
+    document.getElementById("ideaTitleInput").value = "";
+    document.getElementById("ideaDescriptionInput").value = "";
+    document.getElementById("ideaLocationInput").value = "";
+    document.getElementById("ideaTagsInput").value = "";
+    document.getElementById("ideaPinInput").checked = false;
+    document.getElementById("ideaFavInput").checked = false;
+    document.getElementById("ideaRefImageStatus").textContent = "";
+    currentIdeaRefImage = null;
+}
+
+async function handleIdeaRefImage(file) {
+
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    document.getElementById("ideaRefImageStatus").textContent = "Uploading...";
+
+    try {
+
+        const response = await fetch("/api/notes/upload-attachment", {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.attachment) {
+            currentIdeaRefImage = data.attachment;
+            document.getElementById("ideaRefImageStatus").textContent = "✓ " + data.attachment.filename;
+        }
+
+    } catch (error) {
+        document.getElementById("ideaRefImageStatus").textContent = "Upload failed";
+    }
+}
+
+async function submitNewPhotoIdea() {
+
+    const title = document.getElementById("ideaTitleInput").value.trim();
+    const description = document.getElementById("ideaDescriptionInput").value.trim();
+    const location = document.getElementById("ideaLocationInput").value.trim();
+    const bestTime = document.getElementById("ideaBestTimeInput").value;
+    const style = document.getElementById("ideaStyleInput").value;
+    const tagsRaw = document.getElementById("ideaTagsInput").value.trim();
+    const priority = document.getElementById("ideaPriorityInput").value;
+    const visibility = document.querySelector('input[name="ideaVisibility"]:checked').value;
+    const pinned = document.getElementById("ideaPinInput").checked;
+    const favorite = document.getElementById("ideaFavInput").checked;
+
+    if (!title) {
+        alert("Please enter a title.");
+        return;
+    }
+
+    const tags = tagsRaw ? tagsRaw.split(",").map(t => t.trim()).filter(Boolean) : [];
+
+    try {
+
+        const response = await fetch("/api/photo-ideas", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                title, description, location,
+                best_time: bestTime, style, tags, priority,
+                visibility, pinned, favorite,
+                reference_image: currentIdeaRefImage
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.idea) {
+            allPhotoIdeas.push(data.idea);
+            renderPhotoIdeasGrid();
+            closeNewPhotoIdeaModal();
+        }
+
+    } catch (error) {
+        console.log("Create photo idea error:", error);
+    }
+}
+
+
+// =========================
+// PHOTO IDEA VIEWER (reuses note viewer modal)
+// =========================
+
+function openPhotoIdeaViewer(ideaId) {
+
+    const idea = allPhotoIdeas.find(i => i.id === ideaId);
+
+    if (!idea) return;
+
+    currentViewerIdeaId = ideaId;
+    currentViewerNoteId = null;
+    currentViewerJournalId = null;
+    currentViewerLetterId = null;
+    currentViewerDateId = null;
+    currentViewerPlanId = null;
+    currentViewerWishlistId = null;
+    currentViewerPlaceId = null;
+    currentViewerSongId = null;
+
+    document.getElementById("viewerPinBtn").style.display = "inline-flex";
+    document.getElementById("viewerFavBtn").style.display = "inline-flex";
+    document.getElementById("viewerLockBtn").style.display = "inline-flex";
+    document.getElementById("viewerPinBtn").classList.toggle("active", idea.pinned);
+    document.getElementById("viewerFavBtn").classList.toggle("active", idea.favorite);
+    document.getElementById("viewerLockBtn").classList.toggle("active", idea.locked);
+    document.getElementById("viewerPinBtn").setAttribute("onclick", "togglePhotoIdeaField('pinned')");
+    document.getElementById("viewerFavBtn").setAttribute("onclick", "togglePhotoIdeaField('favorite')");
+    document.getElementById("viewerLockBtn").setAttribute("onclick", "togglePhotoIdeaField('locked')");
+
+    renderPhotoIdeaViewerBody(idea);
+
+    document.getElementById("noteViewerModal").classList.add("show");
+}
+
+function renderPhotoIdeaViewerBody(idea) {
+
+    const canSeeContent = !idea.locked || idea.owner === CURRENT_IDENTITY;
+
+    if (idea.locked && !canSeeContent) {
+
+        document.getElementById("noteViewerBody").innerHTML = `
+            <div class="notes-locked-banner">🔒 Protected Idea<br><br>This content is protected.</div>
+        `;
+        return;
+    }
+
+    const refHtml = idea.reference_image
+        ? `<img src="${idea.reference_image.url}" style="max-width:100%; border-radius:10px; margin-bottom:14px;">`
+        : "";
+
+    const capturedHtml = idea.captured_image
+        ? `<img src="${idea.captured_image.url}" style="max-width:100%; border-radius:10px; margin-bottom:14px;">`
+        : "";
+
+    const tagsHtml = (idea.tags || []).map(t => "#" + escapeHtml(t)).join(" ");
+
+    const memoriesPrompt = (idea.status === "captured" && idea.captured_image && !idea.added_to_memories)
+        ? `
+            <div class="idea-memories-prompt">
+                Photo captured! Add this to Our Memories?
+                <br><br>
+                <button class="notes-modal-save" onclick="addIdeaToMemories()">❤️ Add to Our Memories</button>
+            </div>
+        `
+        : (idea.added_to_memories ? `<div class="idea-memories-prompt">✅ Added to Our Memories</div>` : "");
+
+    const recreateHtml = idea.added_to_memories
+        ? `
+            <label class="letter-opendate-label">🔁 Recreate this (optional note, e.g. "2027")</label>
+            <input type="text" id="recreateNoteInput" class="notes-form-input" value="${escapeHtml(idea.recreate_note || "")}" placeholder="e.g. Recreate next year">
+            <button class="notes-attach-btn" onclick="saveRecreateNote()">Save Recreate Note</button>
+        `
+        : "";
+
+    document.getElementById("noteViewerBody").innerHTML = `
+        <div class="notes-viewer-title">📸 ${escapeHtml(idea.title || "Untitled")}</div>
+        ${refHtml}
+        <div class="notes-viewer-content">${escapeHtml(idea.description || "")}</div>
+        <div class="notes-viewer-meta">
+            📍 ${escapeHtml(idea.location || "-")} · 🕐 ${escapeHtml(idea.best_time || "")} · 🎨 ${escapeHtml(idea.style || "")} · ⭐ ${escapeHtml(idea.priority || "")}
+        </div>
+        <div class="notes-viewer-tags">${tagsHtml}</div>
+
+        <div class="idea-status-controls">
+            <button class="idea-status-btn ${idea.status === "idea" ? "active" : ""}" onclick="setPhotoIdeaStatus('idea')">💡 Idea</button>
+            <button class="idea-status-btn ${idea.status === "planned" ? "active" : ""}" onclick="setPhotoIdeaStatus('planned')">📅 Planned</button>
+            <button class="idea-status-btn ${idea.status === "captured" ? "active" : ""}" onclick="setPhotoIdeaStatus('captured')">📸 Captured</button>
+        </div>
+
+        ${capturedHtml}
+        ${memoriesPrompt}
+        ${recreateHtml}
+
+        <div class="notes-viewer-meta" style="margin-top:16px;">
+            Created by: ${escapeHtml(idea.owner || "")} · ${idea.visibility === "shared" ? "Shared" : "Only Me"} · ${escapeHtml(idea.updated_at || "")}
+        </div>
+        <div class="notes-viewer-actions">
+            <button class="notes-modal-cancel" onclick="deleteCurrentPhotoIdea()">Delete</button>
+        </div>
+    `;
+}
+
+async function togglePhotoIdeaField(field) {
+
+    if (!currentViewerIdeaId) return;
+
+    try {
+
+        const response = await fetch(`/api/photo-ideas/${currentViewerIdeaId}/toggle`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ field: field })
+        });
+
+        const data = await response.json();
+
+        if (data.idea) {
+
+            const idx = allPhotoIdeas.findIndex(i => i.id === data.idea.id);
+            if (idx !== -1) allPhotoIdeas[idx] = data.idea;
+
+            renderPhotoIdeasGrid();
+            openPhotoIdeaViewer(data.idea.id);
+        }
+
+    } catch (error) {
+        console.log("Toggle photo idea error:", error);
+    }
+}
+
+function setPhotoIdeaStatus(newStatus) {
+
+    const idea = allPhotoIdeas.find(i => i.id === currentViewerIdeaId);
+
+    if (!idea) return;
+
+    if (newStatus === "captured" && !idea.captured_image) {
+
+        pendingStatusIdeaId = currentViewerIdeaId;
+        document.getElementById("capturedPhotoModal").classList.add("show");
+        return;
+    }
+
+    applyPhotoIdeaStatus(currentViewerIdeaId, newStatus);
+}
+
+async function applyPhotoIdeaStatus(ideaId, newStatus) {
+
+    try {
+
+        const response = await fetch(`/api/photo-ideas/${ideaId}/status`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: newStatus })
+        });
+
+        const data = await response.json();
+
+        if (data.idea) {
+
+            const idx = allPhotoIdeas.findIndex(i => i.id === data.idea.id);
+            if (idx !== -1) allPhotoIdeas[idx] = data.idea;
+
+            renderPhotoIdeasGrid();
+            renderPhotoIdeaViewerBody(data.idea);
+        }
+
+    } catch (error) {
+        console.log("Set status error:", error);
+    }
+}
+
+
+// =========================
+// CAPTURED PHOTO MODAL
+// =========================
+
+function closeCapturedPhotoModal() {
+    document.getElementById("capturedPhotoModal").classList.remove("show");
+    document.getElementById("capturedImageStatus").textContent = "";
+    currentCapturedImage = null;
+    pendingStatusIdeaId = null;
+}
+
+async function handleCapturedImage(file) {
+
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    document.getElementById("capturedImageStatus").textContent = "Uploading...";
+
+    try {
+
+        const response = await fetch("/api/notes/upload-attachment", {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.attachment) {
+            currentCapturedImage = data.attachment;
+            document.getElementById("capturedImageStatus").textContent = "✓ " + data.attachment.filename;
+        }
+
+    } catch (error) {
+        document.getElementById("capturedImageStatus").textContent = "Upload failed";
+    }
+}
+
+async function confirmCapturedPhoto() {
+
+    if (!pendingStatusIdeaId) return;
+
+    if (currentCapturedImage) {
+
+        try {
+
+            await fetch(`/api/photo-ideas/${pendingStatusIdeaId}/captured-image`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ captured_image: currentCapturedImage })
+            });
+
+        } catch (error) {
+            console.log("Set captured image error:", error);
+        }
+    }
+
+    await applyPhotoIdeaStatus(pendingStatusIdeaId, "captured");
+
+    closeCapturedPhotoModal();
+}
+
+async function addIdeaToMemories() {
+
+    if (!currentViewerIdeaId) return;
+
+    try {
+
+        const response = await fetch(`/api/photo-ideas/${currentViewerIdeaId}/add-to-memories`, {
+            method: "POST"
+        });
+
+        const data = await response.json();
+
+        if (data.idea) {
+
+            const idx = allPhotoIdeas.findIndex(i => i.id === data.idea.id);
+            if (idx !== -1) allPhotoIdeas[idx] = data.idea;
+
+            renderPhotoIdeasGrid();
+            renderPhotoIdeaViewerBody(data.idea);
+
+        } else if (data.error) {
+            alert(data.error);
+        }
+
+    } catch (error) {
+        console.log("Add to memories error:", error);
+    }
+}
+
+async function saveRecreateNote() {
+
+    if (!currentViewerIdeaId) return;
+
+    const note = document.getElementById("recreateNoteInput").value.trim();
+
+    try {
+
+        const response = await fetch(`/api/photo-ideas/${currentViewerIdeaId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ recreate_note: note })
+        });
+
+        const data = await response.json();
+
+        if (data.idea) {
+
+            const idx = allPhotoIdeas.findIndex(i => i.id === data.idea.id);
+            if (idx !== -1) allPhotoIdeas[idx] = data.idea;
+
+            alert("Recreate note saved!");
+        }
+
+    } catch (error) {
+        console.log("Save recreate note error:", error);
+    }
+}
+
+async function deleteCurrentPhotoIdea() {
+
+    if (!currentViewerIdeaId) return;
+
+    const confirmDelete = confirm("Delete this photo idea? This cannot be undone.");
+
+    if (!confirmDelete) return;
+
+    try {
+
+        await fetch(`/api/photo-ideas/${currentViewerIdeaId}`, { method: "DELETE" });
+
+        allPhotoIdeas = allPhotoIdeas.filter(i => i.id !== currentViewerIdeaId);
+
+        renderPhotoIdeasGrid();
+        closeNoteViewer();
+
+        currentViewerIdeaId = null;
+
+        document.getElementById("viewerFavBtn").setAttribute("onclick", "toggleViewerNoteField('favorite')");
+        document.getElementById("viewerPinBtn").setAttribute("onclick", "toggleViewerNoteField('pinned')");
+        document.getElementById("viewerLockBtn").setAttribute("onclick", "toggleViewerNoteField('locked')");
+
+    } catch (error) {
+        console.log("Delete photo idea error:", error);
     }
 }

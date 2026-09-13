@@ -8,7 +8,7 @@
     <meta name="viewport"
           content="width=device-width, initial-scale=1.0">
 
-    <title>Our Private Notes</title>
+    <title>Our Story</title>
 
     <link rel="stylesheet"
           href="{{ url_for('static', filename='style.css') }}">
@@ -78,8 +78,8 @@
 
             <div>
                 <button class="notes-back-btn" onclick="window.location.href='/dashboard'">← Back</button>
-                <h1>Our Private Notes</h1>
-                <p class="notes-subtitle">Little pieces of our story.</p>
+               <h1>Our Story</h1>
+<p class="notes-subtitle">Every little piece of us, in one place.</p>
             </div>
 
             <div class="notes-header-actions">
@@ -128,6 +128,10 @@
     <span class="notes-category-icon">🎯</span>
     <span class="notes-category-label">Our Plans</span>
 </div>
+<div class="notes-category-card" data-category="music" onclick="setNotesCategory('music', this)">
+    <span class="notes-category-icon">🎵</span>
+    <span class="notes-category-label">Our Playlist</span>
+</div>
 
 <div class="notes-category-card" data-category="wishlist" onclick="setNotesCategory('wishlist', this)">
     <span class="notes-category-icon">🎁</span>
@@ -137,6 +141,10 @@
             <div class="notes-category-card" data-category="places" onclick="setNotesCategory('places', this)">
     <span class="notes-category-icon">🌍</span>
     <span class="notes-category-label">Our Places</span>
+</div>
+<div class="notes-category-card" data-category="photo-ideas" onclick="setNotesCategory('photo-ideas', this)">
+    <span class="notes-category-icon">📸</span>
+    <span class="notes-category-label">Photo Ideas</span>
 </div>
 
 
@@ -173,6 +181,8 @@
 <div class="notes-grid" id="plansGrid" style="display:none;"></div>
 <div class="notes-grid" id="wishlistGrid" style="display:none;"></div>
 <div class="notes-grid" id="placesGrid" style="display:none;"></div>
+<div class="notes-grid" id="musicGrid" style="display:none;"></div>
+<div class="notes-grid" id="photoIdeasGrid" style="display:none;"></div>
     </main>
 
 
@@ -461,6 +471,124 @@
         <div class="notes-modal-actions">
             <button type="button" class="notes-modal-cancel" onclick="closeNewPlaceModal()">Cancel</button>
             <button type="button" class="notes-modal-save" onclick="submitNewPlace()">Save Place</button>
+        </div>
+
+    </div>
+
+</div>
+<div class="notes-modal" id="newSongModal">
+
+    <div class="notes-modal-inner">
+
+        <div class="notes-modal-title">Add a Song</div>
+
+        <input type="text" id="songTitleInput" class="notes-form-input" placeholder="Song title">
+        <input type="text" id="songArtistInput" class="notes-form-input" placeholder="Artist">
+
+        <div class="journal-mood-row">
+            <span class="journal-mood-option" onclick="selectSongMood('🎵', this)">🎵</span>
+            <span class="journal-mood-option" onclick="selectSongMood('❤️', this)">❤️</span>
+            <span class="journal-mood-option" onclick="selectSongMood('😢', this)">😢</span>
+            <span class="journal-mood-option" onclick="selectSongMood('🔥', this)">🔥</span>
+            <span class="journal-mood-option" onclick="selectSongMood('😌', this)">😌</span>
+            <span class="journal-mood-option" onclick="selectSongMood('💃', this)">💃</span>
+        </div>
+
+        <input type="text" id="songLinkInput" class="notes-form-input" placeholder="Spotify/YouTube link (optional)">
+
+        <div class="notes-attachment-row">
+            <button type="button" class="notes-attach-btn" onclick="document.getElementById('songAudioInput').click()">🎧 Upload Audio (optional)</button>
+            <input type="file" id="songAudioInput" accept="audio/*" style="display:none;" onchange="handleSongAudio(this.files[0])">
+            <span id="songAudioStatus"></span>
+        </div>
+
+        <div class="notes-visibility-row">
+            <label><input type="radio" name="songVisibility" value="shared" checked> Shared</label>
+            <label><input type="radio" name="songVisibility" value="only-me"> Only Me</label>
+        </div>
+
+        <div class="notes-modal-actions">
+            <button type="button" class="notes-modal-cancel" onclick="closeNewSongModal()">Cancel</button>
+            <button type="button" class="notes-modal-save" onclick="submitNewSong()">Add Song</button>
+        </div>
+
+    </div>
+
+</div>
+<div class="notes-modal" id="newPhotoIdeaModal">
+
+    <div class="notes-modal-inner">
+
+        <div class="notes-modal-title">Create Photo Idea</div>
+
+        <input type="text" id="ideaTitleInput" class="notes-form-input" placeholder="📸 Title (e.g. Sunset Silhouette)">
+
+        <textarea id="ideaDescriptionInput" class="notes-form-textarea" placeholder="💭 Description" rows="3"></textarea>
+
+        <input type="text" id="ideaLocationInput" class="notes-form-input" placeholder="📍 Location">
+
+        <select id="ideaBestTimeInput" class="notes-form-input">
+            <option>Morning</option>
+            <option selected>Golden Hour</option>
+            <option>Afternoon</option>
+            <option>Sunset</option>
+            <option>Night</option>
+            <option>Anytime</option>
+        </select>
+
+        <select id="ideaStyleInput" class="notes-form-input">
+            <option selected>Candid</option>
+            <option>Cinematic</option>
+            <option>Casual</option>
+            <option>Creative</option>
+            <option>Mirror</option>
+            <option>Travel</option>
+            <option>Festival</option>
+            <option>Couple</option>
+        </select>
+
+        <input type="text" id="ideaTagsInput" class="notes-form-input" placeholder="🏷️ Tags (comma separated)">
+
+        <select id="ideaPriorityInput" class="notes-form-input">
+            <option>Low</option>
+            <option selected>Medium</option>
+            <option>High</option>
+        </select>
+
+        <div class="notes-visibility-row">
+            <label><input type="radio" name="ideaVisibility" value="shared" checked> Shared</label>
+            <label><input type="radio" name="ideaVisibility" value="only-me"> Only Me</label>
+        </div>
+
+        <label class="notes-repeat-label"><input type="checkbox" id="ideaPinInput"> Pin this idea</label>
+        <label class="notes-repeat-label"><input type="checkbox" id="ideaFavInput"> Add to favorites</label>
+
+        <div class="notes-attachment-row">
+            <button type="button" class="notes-attach-btn" onclick="document.getElementById('ideaRefImageInput').click()">📎 Reference Image</button>
+            <input type="file" id="ideaRefImageInput" accept="image/*" style="display:none;" onchange="handleIdeaRefImage(this.files[0])">
+            <span id="ideaRefImageStatus"></span>
+        </div>
+
+        <div class="notes-modal-actions">
+            <button type="button" class="notes-modal-cancel" onclick="closeNewPhotoIdeaModal()">Cancel</button>
+            <button type="button" class="notes-modal-save" onclick="submitNewPhotoIdea()">Save Idea</button>
+        </div>
+
+    </div>
+
+</div>
+<div class="notes-modal" id="capturedPhotoModal">
+
+    <div class="notes-modal-inner">
+
+        <div class="notes-modal-title">📸 Add the Captured Photo</div>
+
+        <input type="file" id="capturedImageInput" accept="image/*" onchange="handleCapturedImage(this.files[0])">
+        <span id="capturedImageStatus"></span>
+
+        <div class="notes-modal-actions">
+            <button type="button" class="notes-modal-cancel" onclick="closeCapturedPhotoModal()">Skip</button>
+            <button type="button" class="notes-modal-save" onclick="confirmCapturedPhoto()">Save</button>
         </div>
 
     </div>
