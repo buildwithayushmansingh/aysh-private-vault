@@ -94,74 +94,98 @@
              SECTION CARDS
         ========================= -->
 
-        <div class="ourspace-grid">
+        <div class="vault3d-stage" id="vault3dStage">
 
-            <a href="/chat" class="ourspace-card">
-                <span class="ourspace-card-icon">💬</span>
-                <span class="ourspace-card-label">Chat</span>
+    <div class="vault3d-layout">
+
+        <div class="vault3d-row vault3d-row-top">
+            <a href="/notes" class="vault3d-module" data-tilt>
+                <span class="vault3d-module-icon">📖</span>
+                <span class="vault3d-module-label">Our Story</span>
+            </a>
+        </div>
+
+        <div class="vault3d-row vault3d-row-mid">
+
+            <a href="/home" class="vault3d-module" data-tilt>
+                <span class="vault3d-module-icon">📸</span>
+                <span class="vault3d-module-label">Memories</span>
             </a>
 
-            <a href="/home" class="ourspace-card">
-                <span class="ourspace-card-icon">📸</span>
-                <span class="ourspace-card-label">Memories</span>
+            <div class="vault3d-core" data-tilt>
+                <div class="vault3d-core-inner">
+                    <div class="vault3d-core-sparkle">✦</div>
+                    <div class="vault3d-core-title">VAULT</div>
+                    <div class="vault3d-core-sub">Your memories. Your moments. Your space.</div>
+                </div>
+            </div>
+
+            <a href="/chat" class="vault3d-module" data-tilt>
+                <span class="vault3d-module-icon">💬</span>
+                <span class="vault3d-module-label">Chat</span>
             </a>
-
-            <a href="/security" class="ourspace-card">
-                <span class="ourspace-card-icon">🛡</span>
-                <span class="ourspace-card-label">Security</span>
-            </a>
-
-            <a href="/activity" class="ourspace-card">
-                <span class="ourspace-card-icon">🕒</span>
-                <span class="ourspace-card-label">Activity</span>
-            </a>
-
-            <a href="/storage" class="ourspace-card">
-                <span class="ourspace-card-icon">📊</span>
-                <span class="ourspace-card-label">Storage</span>
-            </a>
-
-            <!-- Placeholder cards for features you'll add later -->
-
-<a href="/notes" class="ourspace-card">
-    <span class="ourspace-card-icon">📖</span>
-    <span class="ourspace-card-label">Our Story</span>
-</a>
-
-
 
         </div>
 
+        <div class="vault3d-row vault3d-row-lower">
 
-        <!-- =========================
-             RECENT ACTIVITY
-        ========================= -->
+            <a href="/security" class="vault3d-module" data-tilt>
+                <span class="vault3d-module-icon">🛡</span>
+                <span class="vault3d-module-label">Security</span>
+            </a>
 
-        <div class="ourspace-recent">
+            <a href="/activity" class="vault3d-module" data-tilt>
+                <span class="vault3d-module-icon">🕒</span>
+                <span class="vault3d-module-label">Activity</span>
+            </a>
 
-            <div class="ourspace-recent-title">── Recent Activity ──</div>
+        </div>
 
-            {% if recent_activity %}
+        <div class="vault3d-row vault3d-row-bottom">
+            <a href="/storage" class="vault3d-module" data-tilt>
+                <span class="vault3d-module-icon">📊</span>
+                <span class="vault3d-module-label">Storage</span>
+            </a>
+        </div>
 
-            <ul class="ourspace-recent-list">
+    </div>
 
-                {% for entry in recent_activity %}
-                <li>
+
+    <!-- =========================
+         RECENT ACTIVITY — TIMELINE RAIL
+    ========================= -->
+
+    <div class="vault3d-timeline">
+
+        <div class="ourspace-recent-title">RECENT ACTIVITY</div>
+
+        {% if recent_activity %}
+
+        <div class="timeline-rail">
+
+            {% for entry in recent_activity %}
+            <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
                     <strong>{{ entry.actor }}</strong>
                     {{ entry.action }}
                     {% if entry.filename %}"{{ entry.filename }}"{% endif %}
-                    <span class="ourspace-recent-time">{{ entry.timestamp }}</span>
-                </li>
-                {% endfor %}
+                    <div class="timeline-time">{{ entry.timestamp }}</div>
+                </div>
+            </div>
+            {% endfor %}
 
-            </ul>
+        </div>
 
-            {% else %}
+        {% else %}
 
-            <div class="ourspace-recent-empty">Nothing yet — activity will show up here.</div>
+        <div class="ourspace-recent-empty">Nothing yet — activity will show up here.</div>
 
-            {% endif %}
+        {% endif %}
 
+    </div>
+
+</div>
         </div>
 
     </main>

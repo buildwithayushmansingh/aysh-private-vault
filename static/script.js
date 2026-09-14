@@ -4074,3 +4074,53 @@ async function deleteCurrentPhotoIdea() {
         console.log("Delete photo idea error:", error);
     }
 }
+// =========================================================
+// 3D VAULT DASHBOARD — SUBTLE TILT ON MOUSE MOVE
+// =========================================================
+
+(function () {
+
+    const stage = document.getElementById("vault3dStage");
+
+    if (!stage) return;
+
+    const tiltEls = stage.querySelectorAll("[data-tilt]");
+
+    stage.addEventListener("mousemove", function (event) {
+
+        const stageRect = stage.getBoundingClientRect();
+
+        const centerX = stageRect.left + stageRect.width / 2;
+        const centerY = stageRect.top + stageRect.height / 2;
+
+        const deltaX = (event.clientX - centerX) / (stageRect.width / 2);
+        const deltaY = (event.clientY - centerY) / (stageRect.height / 2);
+
+        tiltEls.forEach(function (el) {
+
+            const isCore = el.classList.contains("vault3d-core");
+
+            const strength = isCore ? 4 : 6;
+
+            const rotateY = deltaX * strength;
+            const rotateX = -deltaY * strength;
+
+            const baseTransform = isCore ? "rotateX(6deg) " : "";
+
+            el.style.transform = `${baseTransform}rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+        });
+
+    });
+
+    stage.addEventListener("mouseleave", function () {
+
+        tiltEls.forEach(function (el) {
+
+            const isCore = el.classList.contains("vault3d-core");
+
+            el.style.transform = isCore ? "rotateX(6deg)" : "";
+        });
+
+    });
+
+})();
