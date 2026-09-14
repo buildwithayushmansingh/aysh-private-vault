@@ -12,57 +12,58 @@
 
     <link rel="stylesheet"
           href="{{ url_for('static', filename='style.css') }}">
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script type="module">
+    import { AvaturnSDK } from "https://cdn.jsdelivr.net/npm/@avaturn/sdk/dist/index.js";
+    window.AvaturnSDK = AvaturnSDK;
+</script>
 </head>
 
-<body>
+<body class="vault-page">
 
-    <header class="navbar">
+    <header class="vault-dock">
 
-        <div class="logo">
-            🔐 Private Vault
-        </div>
+    <div class="vault-dock-inner">
 
-        <nav class="page-nav">
+        <a href="/dashboard" class="vault-logo" style="text-decoration:none;">
+            <span class="vault-logo-dot"></span>
+            VAULT
+        </a>
 
-            <a href="/home">Gallery</a>
-            <a href="/security">Security</a>
-            <a href="/activity">Activity</a>
-            <a href="/storage" class="active">Storage</a>
-            <a href="/chat">Chat</a>
+        <nav class="vault-dock-nav" id="dockNav">
+
+            <span class="dock-pill" id="dockPill"></span>
+
+            <a href="/home" class="dock-item" data-nav><span class="dock-icon">🖼</span> Gallery</a>
+            <a href="/chat" class="dock-item" data-nav><span class="dock-icon">💬</span> Chat</a>
+            <a href="/security" class="dock-item active" data-nav><span class="dock-icon">🛡</span> Security</a>
+            <a href="/activity" class="dock-item" data-nav><span class="dock-icon">🕒</span> Activity</a>
+            <a href="/storage" class="dock-item active" data-nav><span class="dock-icon">📊</span> Storage</a>
 
         </nav>
 
-        <div class="navbar-right">
+        <div class="vault-dock-actions">
 
-            <button
-                class="theme-toggle"
-                onclick="toggleTheme()"
-                id="themeToggleBtn"
-                type="button"
-            >
-                🖥️ Terminal Mode
+            <button class="avatar-btn" onclick="openAvatarPicker()" type="button" id="avatarBtn" title="Change avatar" data-avatar-url="{{ current_avatar }}">
+                <canvas id="avatarBtnCanvas"></canvas>
+                {% if not current_avatar %}<span class="avatar-btn-default" id="avatarBtnDefault">👤</span>{% endif %}
             </button>
 
-            <form
-                action="/logout-all"
-                method="POST"
-                onsubmit="return confirm('Logout from all devices?');"
-            >
-                <button type="submit" class="logout-all">
-                    Logout All Devices
-                </button>
-            </form>
+            <button class="dock-icon-btn" onclick="toggleTheme()" id="themeToggleBtn" type="button" title="Toggle theme">🖥</button>
 
-            <a href="/logout" class="logout">
-                Logout
-            </a>
+            <a href="/logout" class="dock-icon-btn" title="Logout">⏻</a>
 
         </div>
 
-    </header>
+    </div>
 
+</header>
 
+<span class="status-badge">
+    <span class="status-dot"></span>
+    Protected
+</span>
     <!-- =========================
          WELCOME BANNER
     ========================= -->
@@ -103,15 +104,28 @@
 
             <div class="info-card-value">{{ percent_used }}%</div>
 
-            <div class="progress-bar-outer">
-                <div class="progress-bar-inner" style="width: {{ percent_used }}%;"></div>
-            </div>
+<div class="storage-ring-wrap">
+    <svg class="storage-ring" viewBox="0 0 120 120">
+        <circle class="storage-ring-bg" cx="60" cy="60" r="52"></circle>
+        <circle class="storage-ring-fill" cx="60" cy="60" r="52"
+            style="stroke-dashoffset: {{ 327 - (327 * percent_used / 100) }};"></circle>
+    </svg>
+    <div class="storage-ring-label">{{ percent_used }}%</div>
+</div>
 
         </div>
 
     </main>
 
+<script>const CURRENT_IDENTITY = "{{ identity_name }}";</script>
 
+<div class="avatar-modal" id="avatarModal">
+    <div class="avatar-modal-inner rpm-modal-inner">
+        <div class="avatar-modal-title">Create your 3D avatar</div>
+        <div id="avaturn-sdk-container" class="rpm-frame"></div>
+        <button type="button" class="avatar-modal-close" onclick="closeAvatarPicker()">Cancel</button>
+    </div>
+</div>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 
 </body>
