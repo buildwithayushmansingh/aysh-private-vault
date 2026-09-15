@@ -4100,27 +4100,27 @@ async function deleteCurrentPhotoIdea() {
 
             const isCore = el.classList.contains("vault3d-core");
 
-            const strength = isCore ? 4 : 6;
+            const strength = isCore ? 4 : 3;
 
             const rotateY = deltaX * strength;
             const rotateX = -deltaY * strength;
 
-            const baseTransform = isCore ? "rotateX(6deg) " : "";
-
-            el.style.transform = `${baseTransform}rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+            if (isCore) {
+                el.style.transform = `translate(-50%, -50%) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+            } else {
+                el.style.setProperty("--tilt", `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`);
+            }
         });
 
-    });
+        stage.addEventListener("mouseleave", function () {
 
-    stage.addEventListener("mouseleave", function () {
+            tiltEls.forEach(function (el) {
 
-        tiltEls.forEach(function (el) {
+                const isCore = el.classList.contains("vault3d-core");
 
-            const isCore = el.classList.contains("vault3d-core");
+                el.style.transform = isCore ? "rotateX(6deg)" : "";
+            });
 
-            el.style.transform = isCore ? "rotateX(6deg)" : "";
         });
 
-    });
-
-})();
+    })();
