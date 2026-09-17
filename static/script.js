@@ -4112,15 +4112,6 @@ async function deleteCurrentPhotoIdea() {
             }
         });
 
-        stage.addEventListener("mouseleave", function () {
+    });
 
-            tiltEls.forEach(function (el) {
-
-                const isCore = el.classList.contains("vault3d-core");
-
-                el.style.transform = isCore ? "rotateX(6deg)" : "";
-            });
-
-        });
-
-    })();
+})();
