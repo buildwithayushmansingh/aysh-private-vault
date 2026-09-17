@@ -4549,3 +4549,45 @@ body {
     transform:
         rotate(var(--angle)) translate(min(42vw, 300px)) rotate(calc(-1 * var(--angle))) translate(-50%, -50%) var(--tilt, );
 }
+
+/* =========================
+   HOVER GLOW EFFECTS
+========================= */
+
+.vault3d-core {
+    transition: box-shadow 0.4s ease, transform 0.3s ease;
+}
+
+.vault3d-core:hover {
+    box-shadow:
+        0 25px 60px rgba(0, 0, 0, 0.4),
+        0 0 90px var(--accent-glow),
+        0 0 140px var(--accent-glow);
+}
+
+.vault3d-module {
+    transition: transform 0.3s ease, box-shadow 0.35s ease, border-color 0.35s ease;
+}
+
+.vault3d-module:hover {
+    border-color: var(--accent);
+    box-shadow:
+        0 18px 44px var(--accent-glow),
+        0 0 50px var(--accent-glow);
+}
+
+/* Rings brighten when hovering the stage at all */
+
+.vault3d-ring {
+    transition: opacity 0.4s ease, filter 0.4s ease;
+}
+
+.vault3d-layout:hover .vault3d-ring {
+    opacity: 0.9;
+    filter: drop-shadow(0 0 8px var(--accent-glow));
+}
+
+.vault3d-layout:has(.vault3d-core:hover) .vault3d-ring,
+.vault3d-layout:has(.vault3d-module:hover) .vault3d-ring {
+    border-color: var(--accent);
+}
